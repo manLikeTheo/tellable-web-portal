@@ -1,9 +1,8 @@
+// pages/join.tsx
 "use client";
-// src/pages/join.tsx - Fixed for Pages Router
 import { useRouter } from "next/router";
 import { useEffect, useState, useRef } from "react";
-import { createClient } from "@supabase/supabase-js";
-import Head from "next/head";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // --- Types and Interfaces ---
 interface InviteDetails {
@@ -42,14 +41,9 @@ export default function JoinPage() {
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [audioLevel, setAudioLevel] = useState(0);
-
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationRef = useRef<number>(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // --- Effects ---
   useEffect(() => {
@@ -62,7 +56,9 @@ export default function JoinPage() {
       try {
         const { data, error } = await supabase.rpc(
           "validate_invitation_token",
-          { p_token: token }
+          {
+            p_token: token,
+          }
         );
         if (error) throw error;
         setInviteDetails(data);
@@ -72,51 +68,36 @@ export default function JoinPage() {
         setIsLoading(false);
       }
     };
-
     if (router.isReady) {
       validateToken();
     }
   }, [token, router.isReady]);
 
-  // Enhanced recording timer
+  // --- Recording Timer Effect ---
   useEffect(() => {
     if (recordingState === "recording") {
-      timerRef.current = setInterval(() => {
+      intervalRef.current = setInterval(() => {
         setRecordingTime((prev) => prev + 1);
       }, 1000);
     } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (recordingState === "idle") setRecordingTime(0);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      if (recordingState === "idle") {
+        setRecordingTime(0);
+      }
     }
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     };
   }, [recordingState]);
-
-  // Audio level visualization
-  const updateAudioLevel = () => {
-    if (analyserRef.current) {
-      const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-      analyserRef.current.getByteFrequencyData(dataArray);
-      const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-      setAudioLevel(average);
-      animationRef.current = requestAnimationFrame(updateAudioLevel);
-    }
-  };
 
   // --- Recording Logic ---
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      // Set up audio visualization
-      audioContextRef.current = new (window.AudioContext ||
-        (window as any).webkitAudioContext)();
-      const source = audioContextRef.current.createMediaStreamSource(stream);
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      source.connect(analyserRef.current);
-      updateAudioLevel();
-
       mediaRecorderRef.current = new MediaRecorder(stream);
       audioChunksRef.current = [];
 
@@ -128,16 +109,15 @@ export default function JoinPage() {
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         setAudioBlob(blob);
         setRecordingState("stopped");
-        cancelAnimationFrame(animationRef.current);
+        // Stop all tracks to release microphone
         stream.getTracks().forEach((track) => track.stop());
       };
 
       mediaRecorderRef.current.start();
       setRecordingState("recording");
     } catch (err) {
-      alert(
-        "Could not access microphone. Please grant permission and try again."
-      );
+      console.error("Microphone access error:", err);
+      setRecordingState("error");
     }
   };
 
@@ -148,27 +128,85 @@ export default function JoinPage() {
   };
 
   // --- Submission Logic ---
+  // const handleSubmitRecording = async () => {
+  //   if (!audioBlob || !token) return;
+  //   setRecordingState("uploading");
+
+  //   try {
+  //     const fileName = `${Date.now()}.webm`;
+  //     const filePath = `guest-uploads/${fileName}`;
+  //     const { error: uploadError } = await supabase.storage
+  //       .from("book-media")
+  //       .upload(filePath, audioBlob);
+  //     if (uploadError) throw uploadError;
+
+  //     const { error: submissionError } = await supabase.rpc(
+  //       "handle_guest_submission_updated",
+  //       {
+  //         p_token: token,
+  //         p_media_path: filePath,
+  //       }
+  //     );
+  //     if (submissionError) throw submissionError;
+
+  //     setRecordingState("success");
+  //   } catch (err: any) {
+  //     console.error("Submission failed:", err);
+  //     setRecordingState("error");
+  //   }
+  // };
+
   const handleSubmitRecording = async () => {
-    if (!audioBlob || !token) return;
+    if (!audioBlob || !token) {
+      console.log("Missing audioBlob or token:", {
+        audioBlob: !!audioBlob,
+        token,
+      });
+      return;
+    }
+
     setRecordingState("uploading");
 
     try {
       const fileName = `${Date.now()}.webm`;
       const filePath = `guest-uploads/${fileName}`;
+
+      console.log("Uploading file:", { fileName, filePath, token });
+
       const { error: uploadError } = await supabase.storage
         .from("book-media")
         .upload(filePath, audioBlob);
-      if (uploadError) throw uploadError;
 
-      const { error: submissionError } = await supabase.rpc(
-        "handle_guest_submission",
-        {
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        throw uploadError;
+      }
+
+      console.log("File uploaded successfully, calling function with:", {
+        p_token: token,
+        p_media_path: filePath,
+      });
+
+      const { data: functionResult, error: submissionError } =
+        await supabase.rpc("handle_guest_submission_grok", {
           p_token: token,
           p_media_path: filePath,
-        }
-      );
-      if (submissionError) throw submissionError;
+        });
 
+      console.log("Function result:", functionResult);
+      console.log("Function error:", submissionError);
+
+      if (submissionError) {
+        console.error("Submission error:", submissionError);
+        throw submissionError;
+      }
+
+      if (functionResult?.error) {
+        console.error("Function returned error:", functionResult);
+        throw new Error(functionResult.error);
+      }
+
+      console.log("Success! Function returned:", functionResult);
       setRecordingState("success");
     } catch (err: any) {
       console.error("Submission failed:", err);
@@ -176,6 +214,7 @@ export default function JoinPage() {
     }
   };
 
+  // --- Helper Functions ---
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -185,1294 +224,335 @@ export default function JoinPage() {
   // --- Render Logic ---
   if (isLoading) {
     return (
-      <>
-        <Head>
-          <title>Joining Memory Book... | VoiceVault</title>
-        </Head>
-        <div style={styles.container}>
-          <div style={styles.loadingContainer}>
-            <div style={styles.spinner}></div>
-            <p style={styles.loadingText}>Validating your invitation...</p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Validating your invitation...</p>
         </div>
-      </>
+      </div>
     );
   }
 
   if (!inviteDetails?.valid) {
     return (
-      <>
-        <Head>
-          <title>Invalid Invitation | VoiceVault</title>
-        </Head>
-        <div style={styles.container}>
-          <div style={styles.errorContainer}>
-            <div style={styles.errorIcon}>❌</div>
-            <h2>Oops!</h2>
-            <p>
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-100 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-xl p-8 max-w-md mx-4">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg
+                className="w-8 h-8 text-red-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Invalid Invitation
+            </h2>
+            <p className="text-gray-600">
               {inviteDetails?.error || "This link is invalid or has expired."}
             </p>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   if (recordingState === "success") {
     return (
-      <>
-        <Head>
-          <title>Story Submitted! | VoiceVault</title>
-        </Head>
-        <div style={styles.container}>
-          <div style={styles.successContainer}>
-            <div style={styles.successIcon}>🎉</div>
-            <h1 style={styles.successTitle}>Thank You!</h1>
-            <p style={styles.successText}>
-              Your story has been successfully submitted.{" "}
-              {inviteDetails.inviter_name} has been notified and will review it
-              soon.
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-xl p-8 max-w-md mx-4">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg
+                className="w-8 h-8 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Thank You!
+            </h2>
+            <p className="text-gray-600 leading-relaxed">
+              Your story has been successfully submitted to{" "}
+              <span className="font-semibold text-gray-900">
+                "{inviteDetails.book_title}"
+              </span>
+              .{inviteDetails.inviter_name} has been notified and will be
+              thrilled to hear your contribution.
             </p>
-            <div style={styles.successFooter}>
-              <p>Your voice matters. Thank you for sharing your memory! 💙</p>
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-800">
+                Your memory is now part of something beautiful that will be
+                cherished for generations.
+              </p>
             </div>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
-      <Head>
-        <title>Contribute to {inviteDetails.book_title} | VoiceVault</title>
-        <meta
-          name="description"
-          content={`Share your memory for ${inviteDetails.book_title} by ${inviteDetails.inviter_name}`}
-        />
-      </Head>
-
-      <div style={styles.container}>
-        <div style={styles.backgroundGradient}></div>
-
-        <header style={styles.header}>
-          <div style={styles.headerContent}>
-            <div style={styles.inviteIcon}>📖</div>
-            <h2 style={styles.inviteTitle}>You're invited to contribute to:</h2>
-            <h1 style={styles.bookTitle}>{inviteDetails.book_title}</h1>
-            <p style={styles.inviterName}>by {inviteDetails.inviter_name}</p>
-          </div>
-        </header>
-
-        <main style={styles.main}>
-          <div style={styles.promptCard}>
-            <div style={styles.promptIcon}>💭</div>
-            <p style={styles.promptText}>
-              {inviteDetails.prompt_text ||
-                "Share your memory for this chapter."}
-            </p>
-          </div>
-
-          <div style={styles.recordingSection}>
-            {recordingState === "idle" && (
-              <div style={styles.idleState}>
-                <button onClick={startRecording} style={styles.primaryButton}>
-                  <span style={styles.buttonIcon}>🎤</span>
-                  Start Recording
-                </button>
-                <p style={styles.helpText}>Tap to begin sharing your story</p>
-              </div>
-            )}
-
-            {recordingState === "recording" && (
-              <div style={styles.recordingState}>
-                <div
-                  style={{
-                    ...styles.recordingVisual,
-                    transform: `scale(${1 + audioLevel / 500})`,
-                  }}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-4xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <div style={styles.pulseRing}></div>
-                  <div style={styles.recordingDot}></div>
-                </div>
-                <p style={styles.recordingTime}>{formatTime(recordingTime)}</p>
-                <button onClick={stopRecording} style={styles.stopButton}>
-                  <span style={styles.buttonIcon}>⏹️</span>
-                  Stop Recording
-                </button>
-                <p style={styles.recordingHint}>
-                  Speak clearly and take your time
-                </p>
+                  <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                  <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                </svg>
               </div>
-            )}
-
-            {recordingState === "stopped" && audioBlob && (
-              <div style={styles.reviewState}>
-                <div style={styles.audioPlayer}>
-                  <audio
-                    src={URL.createObjectURL(audioBlob)}
-                    controls
-                    style={styles.audioControls}
-                  />
-                </div>
-                <p style={styles.reviewText}>Review your recording above</p>
-                <div style={styles.buttonGroup}>
-                  <button
-                    onClick={() => {
-                      setRecordingState("idle");
-                      setAudioBlob(null);
-                    }}
-                    style={styles.secondaryButton}
-                  >
-                    🔄 Re-record
-                  </button>
-                  <button
-                    onClick={handleSubmitRecording}
-                    style={styles.primaryButton}
-                  >
-                    <span style={styles.buttonIcon}>📤</span>
-                    Submit Story
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {recordingState === "uploading" && (
-              <div style={styles.uploadingState}>
-                <div style={styles.uploadSpinner}></div>
-                <p style={styles.uploadingText}>Uploading your story...</p>
-                <p style={styles.uploadingHint}>Please don't close this page</p>
-              </div>
-            )}
-
-            {recordingState === "error" && (
-              <div style={styles.errorState}>
-                <div style={styles.errorIcon}>⚠️</div>
-                <p style={styles.errorText}>
-                  Something went wrong. Please try again.
-                </p>
-                <button
-                  onClick={() => setRecordingState("stopped")}
-                  style={styles.primaryButton}
-                >
-                  Try Again
-                </button>
-              </div>
-            )}
+              <span className="text-xl font-bold text-gray-900">
+                VoiceVault
+              </span>
+            </div>
+            <span className="text-sm text-gray-500">Memory Contribution</span>
           </div>
-        </main>
-
-        <footer style={styles.footer}>
-          <p style={styles.footerText}>Powered by VoiceVault</p>
-        </footer>
+        </div>
       </div>
-    </>
+
+      {/* Main Content */}
+      <div className="max-w-2xl mx-auto px-6 py-8">
+        {/* Invitation Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center px-4 py-2 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium mb-4">
+            You've been invited to contribute
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            "{inviteDetails.book_title}"
+          </h1>
+          <p className="text-lg text-gray-600">
+            by{" "}
+            <span className="font-semibold">{inviteDetails.inviter_name}</span>
+          </p>
+        </div>
+
+        {/* Prompt Section */}
+        <div className="bg-white rounded-xl shadow-sm border p-6 mb-8">
+          <div className="flex items-start space-x-3">
+            <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+              <svg
+                className="w-4 h-4 text-yellow-600"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-2">
+                Your Story Prompt
+              </h3>
+              <p className="text-gray-700 leading-relaxed">
+                {inviteDetails.prompt_text ||
+                  "Share your memory for this chapter."}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Recording Section */}
+        <div className="bg-white rounded-xl shadow-sm border p-6">
+          {recordingState === "idle" && (
+            <div className="text-center">
+              <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg
+                  className="w-10 h-10 text-red-600"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Ready to Share Your Story?
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Tap the button below to start recording. You can take as long as
+                you need.
+              </p>
+              <button
+                onClick={startRecording}
+                className="inline-flex items-center px-8 py-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors duration-200 shadow-lg hover:shadow-xl"
+              >
+                <svg
+                  className="w-5 h-5 mr-2"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
+                </svg>
+                Start Recording
+              </button>
+            </div>
+          )}
+
+          {recordingState === "recording" && (
+            <div className="text-center">
+              <div className="w-24 h-24 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                <svg
+                  className="w-10 h-10 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Recording...
+              </h3>
+              <div className="text-3xl font-mono font-bold text-red-600 mb-6">
+                {formatTime(recordingTime)}
+              </div>
+              <div className="flex items-center justify-center space-x-2 mb-6">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce"></div>
+                <div
+                  className="w-2 h-2 bg-red-500 rounded-full animate-bounce"
+                  style={{ animationDelay: "0.1s" }}
+                ></div>
+                <div
+                  className="w-2 h-2 bg-red-500 rounded-full animate-bounce"
+                  style={{ animationDelay: "0.2s" }}
+                ></div>
+              </div>
+              <button
+                onClick={stopRecording}
+                className="inline-flex items-center px-8 py-4 bg-gray-700 hover:bg-gray-800 text-white font-semibold rounded-xl transition-colors duration-200"
+              >
+                <svg
+                  className="w-5 h-5 mr-2"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M6 6h12v12H6z" />
+                </svg>
+                Stop Recording
+              </button>
+            </div>
+          )}
+
+          {recordingState === "stopped" && audioBlob && (
+            <div className="text-center">
+              <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg
+                  className="w-10 h-10 text-green-600"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                Review Your Recording
+              </h3>
+
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <audio
+                  src={URL.createObjectURL(audioBlob)}
+                  controls
+                  className="w-full"
+                  style={{ height: "40px" }}
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center space-y-3 sm:space-y-0 sm:space-x-4">
+                <button
+                  onClick={() => {
+                    setRecordingState("idle");
+                    setAudioBlob(null);
+                  }}
+                  className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-lg transition-colors duration-200"
+                >
+                  Record Again
+                </button>
+                <button
+                  onClick={handleSubmitRecording}
+                  className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl"
+                >
+                  Submit Story
+                </button>
+              </div>
+            </div>
+          )}
+
+          {recordingState === "uploading" && (
+            <div className="text-center">
+              <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Uploading Your Story
+              </h3>
+              <p className="text-gray-600">
+                Please wait while we save your contribution...
+              </p>
+            </div>
+          )}
+
+          {recordingState === "error" && (
+            <div className="text-center">
+              <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg
+                  className="w-10 h-10 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Something Went Wrong
+              </h3>
+              <p className="text-gray-600 mb-4">
+                We couldn't access your microphone or save your recording.
+                Please check your browser permissions and try again.
+              </p>
+              <button
+                onClick={() => setRecordingState("idle")}
+                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors duration-200"
+              >
+                Try Again
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="text-center mt-8">
+          <p className="text-sm text-gray-500">
+            Powered by VoiceVault - Preserving memories for generations
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
-
-// --- Styles (same as before) ---
-const styles: { [key: string]: React.CSSProperties } = {
-  container: {
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    minHeight: "100vh",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    position: "relative",
-    display: "flex",
-    flexDirection: "column",
-  },
-
-  backgroundGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background:
-      "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.1) 0%, transparent 50%)",
-    pointerEvents: "none",
-  },
-
-  header: {
-    padding: "2rem 1rem 1rem",
-    textAlign: "center" as const,
-  },
-
-  headerContent: {
-    maxWidth: "400px",
-    margin: "0 auto",
-  },
-
-  inviteIcon: {
-    fontSize: "3rem",
-    marginBottom: "1rem",
-  },
-
-  inviteTitle: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: "0.9rem",
-    fontWeight: "400",
-    marginBottom: "0.5rem",
-    textTransform: "uppercase" as const,
-    letterSpacing: "1px",
-  },
-
-  bookTitle: {
-    color: "white",
-    fontSize: "1.8rem",
-    fontWeight: "700",
-    marginBottom: "0.5rem",
-    lineHeight: "1.2",
-  },
-
-  inviterName: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: "1rem",
-    fontWeight: "500",
-  },
-
-  main: {
-    flex: 1,
-    padding: "0 1rem 2rem",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "2rem",
-  },
-
-  promptCard: {
-    background: "rgba(255,255,255,0.95)",
-    backdropFilter: "blur(10px)",
-    borderRadius: "16px",
-    padding: "1.5rem",
-    maxWidth: "400px",
-    width: "100%",
-    boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-    border: "1px solid rgba(255,255,255,0.2)",
-  },
-
-  promptIcon: {
-    fontSize: "1.5rem",
-    marginBottom: "0.5rem",
-  },
-
-  promptText: {
-    fontSize: "1.1rem",
-    lineHeight: "1.5",
-    color: "#333",
-    margin: 0,
-    fontWeight: "500",
-  },
-
-  recordingSection: {
-    maxWidth: "400px",
-    width: "100%",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-  },
-
-  idleState: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "1rem",
-  },
-
-  recordingState: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "1.5rem",
-  },
-
-  recordingVisual: {
-    position: "relative",
-    transition: "transform 0.1s ease",
-  },
-
-  pulseRing: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    width: "120px",
-    height: "120px",
-    border: "2px solid rgba(255,59,59,0.3)",
-    borderRadius: "50%",
-    animation: "pulse 2s infinite",
-  },
-
-  recordingDot: {
-    width: "80px",
-    height: "80px",
-    background: "#ff3b3b",
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "2rem",
-    animation: "recordingPulse 1s infinite alternate",
-  },
-
-  recordingTime: {
-    color: "white",
-    fontSize: "1.5rem",
-    fontWeight: "600",
-    fontFamily: "monospace",
-  },
-
-  recordingHint: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: "0.9rem",
-    textAlign: "center" as const,
-  },
-
-  reviewState: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "1.5rem",
-    width: "100%",
-  },
-
-  audioPlayer: {
-    width: "100%",
-  },
-
-  audioControls: {
-    width: "100%",
-    height: "60px",
-    borderRadius: "30px",
-    outline: "none",
-  },
-
-  reviewText: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: "0.9rem",
-  },
-
-  buttonGroup: {
-    display: "flex",
-    gap: "1rem",
-    width: "100%",
-  },
-
-  primaryButton: {
-    background: "linear-gradient(45deg, #4CAF50, #45a049)",
-    color: "white",
-    border: "none",
-    padding: "16px 24px",
-    borderRadius: "25px",
-    fontSize: "1rem",
-    fontWeight: "600",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "0.5rem",
-    transition: "all 0.3s ease",
-    boxShadow: "0 4px 15px rgba(76,175,80,0.3)",
-    flex: 1,
-    minHeight: "54px",
-  },
-
-  secondaryButton: {
-    background: "rgba(255,255,255,0.2)",
-    color: "white",
-    border: "2px solid rgba(255,255,255,0.3)",
-    padding: "14px 24px",
-    borderRadius: "25px",
-    fontSize: "1rem",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "all 0.3s ease",
-    flex: 1,
-    minHeight: "54px",
-  },
-
-  stopButton: {
-    background: "linear-gradient(45deg, #f44336, #d32f2f)",
-    color: "white",
-    border: "none",
-    padding: "16px 24px",
-    borderRadius: "25px",
-    fontSize: "1rem",
-    fontWeight: "600",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: "0.5rem",
-    transition: "all 0.3s ease",
-    boxShadow: "0 4px 15px rgba(244,67,54,0.3)",
-  },
-
-  buttonIcon: {
-    fontSize: "1.2rem",
-  },
-
-  helpText: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: "0.9rem",
-    textAlign: "center" as const,
-  },
-
-  uploadingState: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "1rem",
-  },
-
-  uploadSpinner: {
-    width: "40px",
-    height: "40px",
-    border: "3px solid rgba(255,255,255,0.3)",
-    borderTop: "3px solid white",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-  },
-
-  uploadingText: {
-    color: "white",
-    fontSize: "1.1rem",
-    fontWeight: "600",
-  },
-
-  uploadingHint: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: "0.9rem",
-  },
-
-  errorState: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "1rem",
-  },
-
-  errorIcon: {
-    fontSize: "3rem",
-  },
-
-  errorText: {
-    color: "white",
-    fontSize: "1rem",
-    textAlign: "center" as const,
-  },
-
-  successContainer: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "2rem",
-    padding: "2rem",
-    maxWidth: "400px",
-    margin: "auto",
-    textAlign: "center" as const,
-  },
-
-  successIcon: {
-    fontSize: "4rem",
-    animation: "bounce 0.6s ease-in-out",
-  },
-
-  successTitle: {
-    color: "white",
-    fontSize: "2.5rem",
-    fontWeight: "700",
-    margin: 0,
-  },
-
-  successText: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: "1.1rem",
-    lineHeight: "1.6",
-  },
-
-  successFooter: {
-    background: "rgba(255,255,255,0.1)",
-    padding: "1rem",
-    borderRadius: "12px",
-    marginTop: "1rem",
-  },
-
-  loadingContainer: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "2rem",
-    padding: "4rem 2rem",
-  },
-
-  spinner: {
-    width: "50px",
-    height: "50px",
-    border: "3px solid rgba(255,255,255,0.3)",
-    borderTop: "3px solid white",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-  },
-
-  loadingText: {
-    color: "white",
-    fontSize: "1.1rem",
-  },
-
-  errorContainer: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "1.5rem",
-    padding: "4rem 2rem",
-    textAlign: "center" as const,
-    color: "white",
-  },
-
-  footer: {
-    padding: "1rem",
-    textAlign: "center" as const,
-  },
-
-  footerText: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: "0.8rem",
-  },
-};
-// // pages/join.tsx - Enhanced Next.js page for VoiceVault guest invitations
-// import { useRouter } from "next/router";
-// import { useEffect, useState, useRef } from "react";
-// import { createClient, SupabaseClient } from "@supabase/supabase-js";
-
-// // --- Types and Interfaces (UNCHANGED) ---
-// interface InviteDetails {
-//   valid: boolean;
-//   error?: string;
-//   invite_id?: string;
-//   book_id?: string;
-//   book_title?: string;
-//   inviter_name?: string;
-//   prompt_text?: string;
-// }
-
-// type RecordingState =
-//   | "idle"
-//   | "recording"
-//   | "stopped"
-//   | "uploading"
-//   | "error"
-//   | "success";
-
-// // --- Supabase Client Initialization (UNCHANGED) ---
-// const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-// const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-// const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// // --- Main Page Component ---
-// export default function JoinPage() {
-//   const router = useRouter();
-//   const { token } = router.query;
-
-//   // State Management (UNCHANGED CORE LOGIC)
-//   const [inviteDetails, setInviteDetails] = useState<InviteDetails | null>(
-//     null
-//   );
-//   const [isLoading, setIsLoading] = useState(true);
-//   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
-//   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-//   const [recordingTime, setRecordingTime] = useState(0);
-//   const [audioLevel, setAudioLevel] = useState(0);
-
-//   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-//   const audioChunksRef = useRef<Blob[]>([]);
-//   const timerRef = useRef<NodeJS.Timeout | null>(null);
-//   const audioContextRef = useRef<AudioContext | null>(null);
-//   const analyserRef = useRef<AnalyserNode | null>(null);
-//   const animationRef = useRef<number>(0);
-
-//   // --- Effects (CORE VALIDATION UNCHANGED) ---
-//   useEffect(() => {
-//     const validateToken = async () => {
-//       if (typeof token !== "string") {
-//         setInviteDetails({ valid: false, error: "Invalid invitation link." });
-//         setIsLoading(false);
-//         return;
-//       }
-//       try {
-//         const { data, error } = await supabase.rpc(
-//           "validate_invitation_token",
-//           { p_token: token }
-//         );
-//         if (error) throw error;
-//         setInviteDetails(data);
-//       } catch (err: any) {
-//         setInviteDetails({ valid: false, error: err.message });
-//       } finally {
-//         setIsLoading(false);
-//       }
-//     };
-//     if (router.isReady) {
-//       validateToken();
-//     }
-//   }, [token, router.isReady]);
-
-//   // Enhanced recording timer
-//   useEffect(() => {
-//     if (recordingState === "recording") {
-//       timerRef.current = setInterval(() => {
-//         setRecordingTime((prev) => prev + 1);
-//       }, 1000);
-//     } else {
-//       if (timerRef.current) clearInterval(timerRef.current);
-//       if (recordingState === "idle") setRecordingTime(0);
-//     }
-//     return () => {
-//       if (timerRef.current) clearInterval(timerRef.current);
-//     };
-//   }, [recordingState]);
-
-//   // Audio level visualization
-//   const updateAudioLevel = () => {
-//     if (analyserRef.current) {
-//       const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-//       analyserRef.current.getByteFrequencyData(dataArray);
-//       const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-//       setAudioLevel(average);
-//       animationRef.current = requestAnimationFrame(updateAudioLevel);
-//     }
-//   };
-
-//   // --- Enhanced Recording Logic (CORE FUNCTIONALITY PRESERVED) ---
-//   const startRecording = async () => {
-//     try {
-//       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-//       // Set up audio visualization
-//       audioContextRef.current = new (window.AudioContext ||
-//         (window as any).webkitAudioContext)();
-//       const source = audioContextRef.current.createMediaStreamSource(stream);
-//       analyserRef.current = audioContextRef.current.createAnalyser();
-//       source.connect(analyserRef.current);
-//       updateAudioLevel();
-
-//       mediaRecorderRef.current = new MediaRecorder(stream);
-//       audioChunksRef.current = [];
-
-//       mediaRecorderRef.current.ondataavailable = (event) => {
-//         audioChunksRef.current.push(event.data);
-//       };
-
-//       mediaRecorderRef.current.onstop = () => {
-//         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-//         setAudioBlob(blob);
-//         setRecordingState("stopped");
-//         cancelAnimationFrame(animationRef.current);
-//         stream.getTracks().forEach((track) => track.stop());
-//       };
-
-//       mediaRecorderRef.current.start();
-//       setRecordingState("recording");
-//     } catch (err) {
-//       alert(
-//         "Could not access microphone. Please grant permission and try again."
-//       );
-//     }
-//   };
-
-//   const stopRecording = () => {
-//     if (mediaRecorderRef.current && recordingState === "recording") {
-//       mediaRecorderRef.current.stop();
-//     }
-//   };
-
-//   // --- Submission Logic (UNCHANGED) ---
-//   const handleSubmitRecording = async () => {
-//     if (!audioBlob || !token) return;
-//     setRecordingState("uploading");
-
-//     try {
-//       const fileName = `${Date.now()}.webm`;
-//       const filePath = `guest-uploads/${fileName}`;
-//       const { error: uploadError } = await supabase.storage
-//         .from("book-media")
-//         .upload(filePath, audioBlob);
-//       if (uploadError) throw uploadError;
-
-//       const { error: submissionError } = await supabase.rpc(
-//         "handle_guest_submission",
-//         {
-//           p_token: token,
-//           p_media_path: filePath,
-//         }
-//       );
-//       if (submissionError) throw submissionError;
-
-//       setRecordingState("success");
-//     } catch (err: any) {
-//       console.error("Submission failed:", err);
-//       setRecordingState("error");
-//     }
-//   };
-
-//   const formatTime = (seconds: number) => {
-//     const mins = Math.floor(seconds / 60);
-//     const secs = seconds % 60;
-//     return `${mins}:${secs.toString().padStart(2, "0")}`;
-//   };
-
-//   // --- Enhanced Render Logic ---
-//   if (isLoading) {
-//     return (
-//       <div style={styles.container}>
-//         <div style={styles.loadingContainer}>
-//           <div style={styles.spinner}></div>
-//           <p style={styles.loadingText}>Validating your invitation...</p>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   if (!inviteDetails?.valid) {
-//     return (
-//       <div style={styles.container}>
-//         <div style={styles.errorContainer}>
-//           <div style={styles.errorIcon}>❌</div>
-//           <h2>Oops!</h2>
-//           <p>
-//             {inviteDetails?.error || "This link is invalid or has expired."}
-//           </p>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   if (recordingState === "success") {
-//     return (
-//       <div style={styles.container}>
-//         <div style={styles.successContainer}>
-//           <div style={styles.successIcon}>🎉</div>
-//           <h1 style={styles.successTitle}>Thank You!</h1>
-//           <p style={styles.successText}>
-//             Your story has been successfully submitted.{" "}
-//             {inviteDetails.inviter_name} has been notified and will review it
-//             soon.
-//           </p>
-//           <div style={styles.successFooter}>
-//             <p>Your voice matters. Thank you for sharing your memory! 💙</p>
-//           </div>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   return (
-//     <div style={styles.container}>
-//       <div style={styles.backgroundGradient}></div>
-
-//       <header style={styles.header}>
-//         <div style={styles.headerContent}>
-//           <div style={styles.inviteIcon}>📖</div>
-//           <h2 style={styles.inviteTitle}>You're invited to contribute to:</h2>
-//           <h1 style={styles.bookTitle}>{inviteDetails.book_title}</h1>
-//           <p style={styles.inviterName}>by {inviteDetails.inviter_name}</p>
-//         </div>
-//       </header>
-
-//       <main style={styles.main}>
-//         <div style={styles.promptCard}>
-//           <div style={styles.promptIcon}>💭</div>
-//           <p style={styles.promptText}>
-//             {inviteDetails.prompt_text || "Share your memory for this chapter."}
-//           </p>
-//         </div>
-
-//         <div style={styles.recordingSection}>
-//           {recordingState === "idle" && (
-//             <div style={styles.idleState}>
-//               <button onClick={startRecording} style={styles.primaryButton}>
-//                 <span style={styles.buttonIcon}>🎤</span>
-//                 Start Recording
-//               </button>
-//               <p style={styles.helpText}>Tap to begin sharing your story</p>
-//             </div>
-//           )}
-
-//           {recordingState === "recording" && (
-//             <div style={styles.recordingState}>
-//               <div
-//                 style={{
-//                   ...styles.recordingVisual,
-//                   transform: `scale(${1 + audioLevel / 500})`,
-//                 }}
-//               >
-//                 <div style={styles.pulseRing}></div>
-//                 <div style={styles.recordingDot}></div>
-//               </div>
-//               <p style={styles.recordingTime}>{formatTime(recordingTime)}</p>
-//               <button onClick={stopRecording} style={styles.stopButton}>
-//                 <span style={styles.buttonIcon}>⏹️</span>
-//                 Stop Recording
-//               </button>
-//               <p style={styles.recordingHint}>
-//                 Speak clearly and take your time
-//               </p>
-//             </div>
-//           )}
-
-//           {recordingState === "stopped" && audioBlob && (
-//             <div style={styles.reviewState}>
-//               <div style={styles.audioPlayer}>
-//                 <audio
-//                   src={URL.createObjectURL(audioBlob)}
-//                   controls
-//                   style={styles.audioControls}
-//                 />
-//               </div>
-//               <p style={styles.reviewText}>Review your recording above</p>
-//               <div style={styles.buttonGroup}>
-//                 <button
-//                   onClick={() => {
-//                     setRecordingState("idle");
-//                     setAudioBlob(null);
-//                   }}
-//                   style={styles.secondaryButton}
-//                 >
-//                   🔄 Re-record
-//                 </button>
-//                 <button
-//                   onClick={handleSubmitRecording}
-//                   style={styles.primaryButton}
-//                 >
-//                   <span style={styles.buttonIcon}>📤</span>
-//                   Submit Story
-//                 </button>
-//               </div>
-//             </div>
-//           )}
-
-//           {recordingState === "uploading" && (
-//             <div style={styles.uploadingState}>
-//               <div style={styles.uploadSpinner}></div>
-//               <p style={styles.uploadingText}>Uploading your story...</p>
-//               <p style={styles.uploadingHint}>Please don't close this page</p>
-//             </div>
-//           )}
-
-//           {recordingState === "error" && (
-//             <div style={styles.errorState}>
-//               <div style={styles.errorIcon}>⚠️</div>
-//               <p style={styles.errorText}>
-//                 Something went wrong. Please try again.
-//               </p>
-//               <button
-//                 onClick={() => setRecordingState("stopped")}
-//                 style={styles.primaryButton}
-//               >
-//                 Try Again
-//               </button>
-//             </div>
-//           )}
-//         </div>
-//       </main>
-
-//       <footer style={styles.footer}>
-//         <p style={styles.footerText}>Powered by VoiceVault</p>
-//       </footer>
-//     </div>
-//   );
-// }
-
-// // --- Enhanced Styles ---
-// const styles: { [key: string]: React.CSSProperties } = {
-//   container: {
-//     fontFamily:
-//       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-//     minHeight: "100vh",
-//     background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-//     position: "relative",
-//     display: "flex",
-//     flexDirection: "column",
-//   },
-
-//   backgroundGradient: {
-//     position: "absolute",
-//     top: 0,
-//     left: 0,
-//     right: 0,
-//     bottom: 0,
-//     background:
-//       "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.1) 0%, transparent 50%)",
-//     pointerEvents: "none",
-//   },
-
-//   header: {
-//     padding: "2rem 1rem 1rem",
-//     textAlign: "center" as const,
-//   },
-
-//   headerContent: {
-//     maxWidth: "400px",
-//     margin: "0 auto",
-//   },
-
-//   inviteIcon: {
-//     fontSize: "3rem",
-//     marginBottom: "1rem",
-//   },
-
-//   inviteTitle: {
-//     color: "rgba(255,255,255,0.9)",
-//     fontSize: "0.9rem",
-//     fontWeight: "400",
-//     marginBottom: "0.5rem",
-//     textTransform: "uppercase" as const,
-//     letterSpacing: "1px",
-//   },
-
-//   bookTitle: {
-//     color: "white",
-//     fontSize: "1.8rem",
-//     fontWeight: "700",
-//     marginBottom: "0.5rem",
-//     lineHeight: "1.2",
-//   },
-
-//   inviterName: {
-//     color: "rgba(255,255,255,0.8)",
-//     fontSize: "1rem",
-//     fontWeight: "500",
-//   },
-
-//   main: {
-//     flex: 1,
-//     padding: "0 1rem 2rem",
-//     display: "flex",
-//     flexDirection: "column",
-//     alignItems: "center",
-//     gap: "2rem",
-//   },
-
-//   promptCard: {
-//     background: "rgba(255,255,255,0.95)",
-//     backdropFilter: "blur(10px)",
-//     borderRadius: "16px",
-//     padding: "1.5rem",
-//     maxWidth: "400px",
-//     width: "100%",
-//     boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-//     border: "1px solid rgba(255,255,255,0.2)",
-//   },
-
-//   promptIcon: {
-//     fontSize: "1.5rem",
-//     marginBottom: "0.5rem",
-//   },
-
-//   promptText: {
-//     fontSize: "1.1rem",
-//     lineHeight: "1.5",
-//     color: "#333",
-//     margin: 0,
-//     fontWeight: "500",
-//   },
-
-//   recordingSection: {
-//     maxWidth: "400px",
-//     width: "100%",
-//     display: "flex",
-//     flexDirection: "column",
-//     alignItems: "center",
-//   },
-
-//   idleState: {
-//     display: "flex",
-//     flexDirection: "column",
-//     alignItems: "center",
-//     gap: "1rem",
-//   },
-
-//   recordingState: {
-//     display: "flex",
-//     flexDirection: "column",
-//     alignItems: "center",
-//     gap: "1.5rem",
-//   },
-
-//   recordingVisual: {
-//     position: "relative",
-//     transition: "transform 0.1s ease",
-//   },
-
-//   pulseRing: {
-//     position: "absolute",
-//     top: "50%",
-//     left: "50%",
-//     transform: "translate(-50%, -50%)",
-//     width: "120px",
-//     height: "120px",
-//     border: "2px solid rgba(255,59,59,0.3)",
-//     borderRadius: "50%",
-//     animation: "pulse 2s infinite",
-//   },
-
-//   recordingDot: {
-//     width: "80px",
-//     height: "80px",
-//     background: "#ff3b3b",
-//     borderRadius: "50%",
-//     display: "flex",
-//     alignItems: "center",
-//     justifyContent: "center",
-//     fontSize: "2rem",
-//     animation: "recordingPulse 1s infinite alternate",
-//   },
-
-//   recordingTime: {
-//     color: "white",
-//     fontSize: "1.5rem",
-//     fontWeight: "600",
-//     fontFamily: "monospace",
-//   },
-
-//   recordingHint: {
-//     color: "rgba(255,255,255,0.8)",
-//     fontSize: "0.9rem",
-//     textAlign: "center" as const,
-//   },
-
-//   reviewState: {
-//     display: "flex",
-//     flexDirection: "column",
-//     alignItems: "center",
-//     gap: "1.5rem",
-//     width: "100%",
-//   },
-
-//   audioPlayer: {
-//     width: "100%",
-//   },
-
-//   audioControls: {
-//     width: "100%",
-//     height: "60px",
-//     borderRadius: "30px",
-//     outline: "none",
-//   },
-
-//   reviewText: {
-//     color: "rgba(255,255,255,0.9)",
-//     fontSize: "0.9rem",
-//   },
-
-//   buttonGroup: {
-//     display: "flex",
-//     gap: "1rem",
-//     width: "100%",
-//   },
-
-//   primaryButton: {
-//     background: "linear-gradient(45deg, #4CAF50, #45a049)",
-//     color: "white",
-//     border: "none",
-//     padding: "16px 24px",
-//     borderRadius: "25px",
-//     fontSize: "1rem",
-//     fontWeight: "600",
-//     cursor: "pointer",
-//     display: "flex",
-//     alignItems: "center",
-//     justifyContent: "center",
-//     gap: "0.5rem",
-//     transition: "all 0.3s ease",
-//     boxShadow: "0 4px 15px rgba(76,175,80,0.3)",
-//     flex: 1,
-//     minHeight: "54px",
-//   },
-
-//   secondaryButton: {
-//     background: "rgba(255,255,255,0.2)",
-//     color: "white",
-//     border: "2px solid rgba(255,255,255,0.3)",
-//     padding: "14px 24px",
-//     borderRadius: "25px",
-//     fontSize: "1rem",
-//     fontWeight: "600",
-//     cursor: "pointer",
-//     transition: "all 0.3s ease",
-//     flex: 1,
-//     minHeight: "54px",
-//   },
-
-//   stopButton: {
-//     background: "linear-gradient(45deg, #f44336, #d32f2f)",
-//     color: "white",
-//     border: "none",
-//     padding: "16px 24px",
-//     borderRadius: "25px",
-//     fontSize: "1rem",
-//     fontWeight: "600",
-//     cursor: "pointer",
-//     display: "flex",
-//     alignItems: "center",
-//     gap: "0.5rem",
-//     transition: "all 0.3s ease",
-//     boxShadow: "0 4px 15px rgba(244,67,54,0.3)",
-//   },
-
-//   buttonIcon: {
-//     fontSize: "1.2rem",
-//   },
-
-//   helpText: {
-//     color: "rgba(255,255,255,0.8)",
-//     fontSize: "0.9rem",
-//     textAlign: "center" as const,
-//   },
-
-//   uploadingState: {
-//     display: "flex",
-//     flexDirection: "column",
-//     alignItems: "center",
-//     gap: "1rem",
-//   },
-
-//   uploadSpinner: {
-//     width: "40px",
-//     height: "40px",
-//     border: "3px solid rgba(255,255,255,0.3)",
-//     borderTop: "3px solid white",
-//     borderRadius: "50%",
-//     animation: "spin 1s linear infinite",
-//   },
-
-//   uploadingText: {
-//     color: "white",
-//     fontSize: "1.1rem",
-//     fontWeight: "600",
-//   },
-
-//   uploadingHint: {
-//     color: "rgba(255,255,255,0.8)",
-//     fontSize: "0.9rem",
-//   },
-
-//   errorState: {
-//     display: "flex",
-//     flexDirection: "column",
-//     alignItems: "center",
-//     gap: "1rem",
-//   },
-
-//   errorIcon: {
-//     fontSize: "3rem",
-//   },
-
-//   errorText: {
-//     color: "white",
-//     fontSize: "1rem",
-//     textAlign: "center" as const,
-//   },
-
-//   successContainer: {
-//     display: "flex",
-//     flexDirection: "column",
-//     alignItems: "center",
-//     gap: "2rem",
-//     padding: "2rem",
-//     maxWidth: "400px",
-//     margin: "auto",
-//     textAlign: "center" as const,
-//   },
-
-//   successIcon: {
-//     fontSize: "4rem",
-//     animation: "bounce 0.6s ease-in-out",
-//   },
-
-//   successTitle: {
-//     color: "white",
-//     fontSize: "2.5rem",
-//     fontWeight: "700",
-//     margin: 0,
-//   },
-
-//   successText: {
-//     color: "rgba(255,255,255,0.9)",
-//     fontSize: "1.1rem",
-//     lineHeight: "1.6",
-//   },
-
-//   successFooter: {
-//     background: "rgba(255,255,255,0.1)",
-//     padding: "1rem",
-//     borderRadius: "12px",
-//     marginTop: "1rem",
-//   },
-
-//   loadingContainer: {
-//     display: "flex",
-//     flexDirection: "column",
-//     alignItems: "center",
-//     gap: "2rem",
-//     padding: "4rem 2rem",
-//   },
-
-//   spinner: {
-//     width: "50px",
-//     height: "50px",
-//     border: "3px solid rgba(255,255,255,0.3)",
-//     borderTop: "3px solid white",
-//     borderRadius: "50%",
-//     animation: "spin 1s linear infinite",
-//   },
-
-//   loadingText: {
-//     color: "white",
-//     fontSize: "1.1rem",
-//   },
-
-//   errorContainer: {
-//     display: "flex",
-//     flexDirection: "column",
-//     alignItems: "center",
-//     gap: "1.5rem",
-//     padding: "4rem 2rem",
-//     textAlign: "center" as const,
-//     color: "white",
-//   },
-
-//   footer: {
-//     padding: "1rem",
-//     textAlign: "center" as const,
-//   },
-
-//   footerText: {
-//     color: "rgba(255,255,255,0.6)",
-//     fontSize: "0.8rem",
-//   },
-// };
-
-// // Add CSS animations via a style tag (you'd typically put this in a CSS file)
-// if (typeof document !== "undefined") {
-//   const style = document.createElement("style");
-//   style.textContent = `
-//     @keyframes pulse {
-//       0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-//       100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
-//     }
-//     @keyframes recordingPulse {
-//       0% { opacity: 1; }
-//       100% { opacity: 0.7; }
-//     }
-//     @keyframes spin {
-//       0% { transform: rotate(0deg); }
-//       100% { transform: rotate(360deg); }
-//     }
-//     @keyframes bounce {
-//       0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-//       40% { transform: translateY(-10px); }
-//       60% { transform: translateY(-5px); }
-//     }
-//   `;
-//   document.head.appendChild(style);
-// }
