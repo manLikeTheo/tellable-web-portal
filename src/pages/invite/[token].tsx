@@ -36,25 +36,70 @@ export default function InvitationPage() {
     }
   }, [token]);
 
+  //   const loadInvitationDetails = async (invitationToken: string) => {
+  //     try {
+  //       const { data, error } = await supabase.rpc("get_invitation_details_v0", {
+  //         p_token: invitationToken,
+  //       });
+
+  //       if (error) throw error;
+
+  //       if (data && data.length > 0) {
+  //         const details = data[0];
+
+  //         if (details.is_expired) {
+  //           setError(
+  //             "This invitation has expired. Please contact the book owner for a new invitation."
+  //           );
+  //         } else {
+  //           setInvitationDetails(details);
+  //         }
+  //       } else {
+  //         setError(
+  //           "Invalid invitation link. Please check the link and try again."
+  //         );
+  //       }
+  //     } catch (err: any) {
+  //       console.error("Error loading invitation:", err);
+  //       setError("Could not load invitation details. Please try again.");
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+
   const loadInvitationDetails = async (invitationToken: string) => {
     try {
-      const { data, error } = await supabase.rpc("create_invitation_v0", {
+      console.log("Loading invitation for token:", invitationToken); // Debug log
+
+      const { data, error } = await supabase.rpc("get_invitation_details_v0", {
         p_token: invitationToken,
       });
 
-      if (error) throw error;
+      console.log("Supabase response:", { data, error }); // Debug log
 
-      if (data && data.length > 0) {
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+
+      // IMPORTANT: Check if data exists AND is not empty array
+      if (data && Array.isArray(data) && data.length > 0) {
         const details = data[0];
+        console.log("Invitation details:", details); // Debug log
 
+        // Check if the invitation is expired
         if (details.is_expired) {
           setError(
             "This invitation has expired. Please contact the book owner for a new invitation."
           );
         } else {
+          // SUCCESS: Set the invitation details
           setInvitationDetails(details);
+          console.log("Successfully loaded invitation details"); // Debug log
         }
       } else {
+        // This is where your error is coming from
+        console.log("No data returned or empty array:", data); // Debug log
         setError(
           "Invalid invitation link. Please check the link and try again."
         );
