@@ -1,4 +1,4 @@
-// src/lib/supabase.ts
+// lib/supabase.ts (for web portal)
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -6,5 +6,13 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Export the client type for TypeScript
+// // src/lib/supabase.tsOLD
+// import { createClient } from "@supabase/supabase-js";
+
+// const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+// const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+// export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// // Export the client type for TypeScript
 export type { SupabaseClient } from "@supabase/supabase-js";
