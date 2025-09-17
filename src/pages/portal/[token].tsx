@@ -66,66 +66,6 @@ export default function PortalPage({
   return <PortalApp token={token} invitation={invitation} />;
 }
 
-// export const getServerSideProps: GetServerSideProps = async (context) => {
-//   const { token } = context.params!;
-
-//   if (!token || typeof token !== "string") {
-//     return {
-//       props: {
-//         token: "",
-//         invitation: null,
-//         error: "invalid",
-//       },
-//     };
-//   }
-
-//   try {
-//     // Validate invitation token
-//     const { data, error } = await supabase
-//       .rpc("get_invitation_details_test_version", { p_token: token })
-//       .single();
-
-//     const invitation = data as InvitationDetails | null;
-
-//     if (error || !invitation) {
-//       return {
-//         props: {
-//           token,
-//           invitation: null,
-//           error: "invalid",
-//         },
-//       };
-//     }
-
-//     // Check if expired
-//     if (invitation.status === "expired") {
-//       return {
-//         props: {
-//           token,
-//           invitation: null,
-//           error: "expired",
-//         },
-//       };
-//     }
-
-//     return {
-//       props: {
-//         token,
-//         invitation,
-//       },
-//     };
-//   } catch (err) {
-//     console.error("Portal SSR error:", err);
-//     return {
-//       props: {
-//         token,
-//         invitation: null,
-//         error: "invalid",
-//       },
-//     };
-//   }
-// };
-
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { token } = context.params!;
 
@@ -142,7 +82,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     console.log("Calling RPC function with token:", token);
 
     const { data, error } = await supabase
-      .rpc("get_invitation_details_test_version", { p_token: token })
+      .rpc("get_invitation_details_fix", { p_token: token })
       .single();
 
     console.log("RPC Response data:", data);
