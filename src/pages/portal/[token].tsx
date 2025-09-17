@@ -82,7 +82,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     console.log("Calling RPC function with token:", token);
 
     const { data, error } = await supabase
-      .rpc("get_invitation_details_fix", { p_token: token })
+      .rpc("get_invitation_details_fix_v2", { p_token: token })
       .single();
 
     console.log("RPC Response data:", data);
