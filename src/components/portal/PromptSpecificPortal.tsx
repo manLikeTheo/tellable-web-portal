@@ -81,7 +81,7 @@ const PromptSpecificPortal: React.FC<PromptSpecificPortalProps> = ({
             </span>
           </div>
           <p className="text-lg text-gray-900 leading-relaxed">
-            {invitation.prompt_text}
+            {invitation.prompt_content}
           </p>
         </div>
 

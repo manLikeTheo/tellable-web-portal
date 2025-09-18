@@ -5,7 +5,7 @@ export interface InvitationDetails {
   book_title: string;
   inviter_name: string;
   prompt_id?: number;
-  prompt_text?: string;
+  prompt_content?: string;
   chapter_title?: string;
   invitation_type: "general" | "prompt_specific";
   custom_message?: string;

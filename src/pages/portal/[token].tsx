@@ -10,7 +10,7 @@ interface InvitationDetails {
   book_title: string;
   inviter_name: string;
   prompt_id?: number;
-  prompt_text?: string;
+  prompt_content?: string;
   chapter_title?: string;
   invitation_type: "general" | "prompt_specific";
   custom_message?: string;
@@ -69,25 +69,20 @@ export default function PortalPage({
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { token } = context.params!;
 
-  console.log("Token received:", token);
+  // console.log("Token received:", token);
 
   if (!token || typeof token !== "string") {
-    console.log("Invalid token format");
+    // console.log("Invalid token format");
     return {
       props: { token: "", invitation: null, error: "invalid" },
     };
   }
 
   try {
-    console.log("Calling RPC function with token:", token);
-
-    const { data, error } = await supabase.rpc(
-      "get_invitation_details_fix_v2",
-      { p_token: token }
-    );
-    // .single();
-
-    console.log("RPC Response data:", data);
+    const { data, error } = await supabase
+      .rpc("get_invitation_details_final_v3", { p_token: token })
+      .single();
+    console.log("RPC Response data details:", data);
     console.log("RPC Response error:", error);
 
     const invitation = data as InvitationDetails | null;
