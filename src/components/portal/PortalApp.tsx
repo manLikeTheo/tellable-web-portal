@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { InvitationDetails } from "../../types/portal";
 // import SmartPortalRouter from "./SmartPortalRouter";
-import OnboardingPortal from "./OnboardingPortal";
 import PromptSpecificPortal from "./PromptSpecificPortal";
 import RecordingInterface from "./RecordingInterface";
 import SuccessPage from "./SuccessPage";
@@ -42,13 +41,8 @@ const PortalApp: React.FC<PortalAppProps> = ({ token, invitation }) => {
   const renderCurrentStep = () => {
     switch (currentStep) {
       case "welcome":
-        return invitation.invitation_type === "prompt_specific" ? (
+        return (
           <PromptSpecificPortal
-            invitation={invitation}
-            onStartRecording={handleStartRecording}
-          />
-        ) : (
-          <OnboardingPortal
             invitation={invitation}
             onStartRecording={handleStartRecording}
           />

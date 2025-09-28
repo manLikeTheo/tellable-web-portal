@@ -68,39 +68,114 @@ export default function PortalPage({
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { token } = context.params!;
 
+  console.log("1. Token received:", token);
+  console.log("2. Token type:", typeof token);
+  console.log("3. Token length:", token?.length);
+
   if (!token || typeof token !== "string") {
+    console.log("4. Token validation failed");
     return {
       props: { token: "", invitation: null, error: "invalid" },
     };
   }
 
   try {
+    console.log("5. Calling RPC with token:", token);
+    // Test basic Supabase connection
+    const testConnection = await supabaseServer
+      .from("collaboration_invites")
+      .select("id, token, status")
+      .eq("token", token)
+      .single();
+
+    console.log("Test connection result:", testConnection);
     const { data, error } = await supabaseServer
       .rpc("get_invitation_details_final_v4", { p_token: token })
       .single();
-    // console.log("RPC Response data details:", data);
-    // console.log("RPC Response error:", error);
+
+    console.log("6. RPC Response data:", data);
+    console.log("7. RPC Response error:", error);
+    console.log("8. Data type:", typeof data);
+    console.log("9. Data is null?", data === null);
 
     const invitation = data as InvitationDetails | null;
 
     if (error) {
-      // console.log("RPC Error details:", error);
+      console.log("10. RPC Error details:", {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      });
       return {
         props: { token, invitation: null, error: "invalid" },
       };
     }
 
     if (!invitation) {
+      console.log("11. No invitation found for token");
       return {
         props: { token, invitation: null, error: "invalid" },
       };
     }
 
+    console.log("12. Successfully found invitation:", invitation.invitation_id);
     return { props: { token, invitation } };
   } catch (err) {
-    console.error("Portal SSR error:", err);
+    console.error("13. Portal SSR error:", err);
+    console.error(
+      "14. Error stack:",
+      err instanceof Error ? err.stack : "No stack"
+    );
     return {
       props: { token, invitation: null, error: "invalid" },
     };
   }
 };
+
+// export const getServerSideProps: GetServerSideProps = async (context) => {
+//   const { token } = context.params!;
+
+//   // Debug logging (remove after fixing)
+//   console.log("Environment check:", {
+//     hasUrl: !!process.env.SUPABASE_URL,
+//     hasKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+//     url: process.env.SUPABASE_URL?.substring(0, 20) + "...",
+//   });
+
+//   if (!token || typeof token !== "string") {
+//     return {
+//       props: { token: "", invitation: null, error: "invalid" },
+//     };
+//   }
+
+//   try {
+//     const { data, error } = await supabaseServer
+//       .rpc("get_invitation_details_final_v4", { p_token: token })
+//       .single();
+//     // console.log("RPC Response data details:", data);
+//     // console.log("RPC Response error:", error);
+
+//     const invitation = data as InvitationDetails | null;
+
+//     if (error) {
+//       // console.log("RPC Error details:", error);
+//       return {
+//         props: { token, invitation: null, error: "invalid" },
+//       };
+//     }
+
+//     if (!invitation) {
+//       return {
+//         props: { token, invitation: null, error: "invalid" },
+//       };
+//     }
+
+//     return { props: { token, invitation } };
+//   } catch (err) {
+//     console.error("Portal SSR error:", err);
+//     return {
+//       props: { token, invitation: null, error: "invalid" },
+//     };
+//   }
+// };
