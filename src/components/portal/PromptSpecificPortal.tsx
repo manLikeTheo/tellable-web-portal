@@ -22,7 +22,6 @@ const PromptSpecificPortal: React.FC<PromptSpecificPortalProps> = ({
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
@@ -51,7 +50,6 @@ const PromptSpecificPortal: React.FC<PromptSpecificPortalProps> = ({
           </p>
         </div>
 
-        {/* Chapter Context */}
         {invitation.chapter_title && (
           <div className="bg-indigo-50 rounded-xl p-4 mb-6">
             <p className="text-sm font-medium text-indigo-800 mb-1">
@@ -60,7 +58,6 @@ const PromptSpecificPortal: React.FC<PromptSpecificPortalProps> = ({
           </div>
         )}
 
-        {/* The Prompt */}
         <div className="bg-gradient-to-r from-purple-100 to-indigo-100 rounded-2xl p-6 mb-8">
           <div className="flex items-center space-x-2 mb-3">
             <svg
@@ -85,7 +82,6 @@ const PromptSpecificPortal: React.FC<PromptSpecificPortalProps> = ({
           </p>
         </div>
 
-        {/* Custom Message */}
         {invitation.custom_message && (
           <div className="bg-yellow-50 rounded-xl p-4 mb-6 border border-yellow-200">
             <div className="flex items-start space-x-2">
@@ -127,7 +123,6 @@ const PromptSpecificPortal: React.FC<PromptSpecificPortalProps> = ({
           </ul>
         </div>
 
-        {/* Name Input */}
         <div className="mb-6">
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Confirm your name for the story
@@ -142,7 +137,6 @@ const PromptSpecificPortal: React.FC<PromptSpecificPortalProps> = ({
           />
         </div>
 
-        {/* Action Button */}
         <button
           onClick={handleGetStarted}
           disabled={!guestName.trim()}
@@ -155,7 +149,6 @@ const PromptSpecificPortal: React.FC<PromptSpecificPortalProps> = ({
           🎤 Ready to Share Your Story
         </button>
 
-        {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-xs text-gray-500">
             This should take about 2-3 minutes • No account required

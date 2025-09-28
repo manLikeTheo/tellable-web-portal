@@ -23,7 +23,6 @@ const OnboardingPortal: React.FC<OnboardingPortalProps> = ({
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg w-full">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
@@ -52,7 +51,6 @@ const OnboardingPortal: React.FC<OnboardingPortalProps> = ({
           </p>
         </div>
 
-        {/* Custom Message */}
         {invitation.custom_message && (
           <div className="bg-purple-50 rounded-xl p-4 mb-6">
             <p className="text-gray-800 italic">

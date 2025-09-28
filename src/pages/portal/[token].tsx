@@ -69,10 +69,7 @@ export default function PortalPage({
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { token } = context.params!;
 
-  // console.log("Token received:", token);
-
   if (!token || typeof token !== "string") {
-    // console.log("Invalid token format");
     return {
       props: { token: "", invitation: null, error: "invalid" },
     };
@@ -80,28 +77,26 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   try {
     const { data, error } = await supabase
-      .rpc("get_invitation_details_final_v3", { p_token: token })
+      .rpc("get_invitation_details_final_v4", { p_token: token })
       .single();
-    console.log("RPC Response data details:", data);
-    console.log("RPC Response error:", error);
+    // console.log("RPC Response data details:", data);
+    // console.log("RPC Response error:", error);
 
     const invitation = data as InvitationDetails | null;
 
     if (error) {
-      console.log("RPC Error details:", error);
+      // console.log("RPC Error details:", error);
       return {
         props: { token, invitation: null, error: "invalid" },
       };
     }
 
     if (!invitation) {
-      console.log("No invitation data returned");
       return {
         props: { token, invitation: null, error: "invalid" },
       };
     }
 
-    console.log("Invitation found:", invitation);
     return { props: { token, invitation } };
   } catch (err) {
     console.error("Portal SSR error:", err);

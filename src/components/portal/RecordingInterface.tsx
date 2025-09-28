@@ -74,7 +74,6 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
 
-        // Stop all tracks
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -82,7 +81,6 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
       setRecordingState("recording");
       setRecordingTime(0);
 
-      // Start timer
       intervalRef.current = setInterval(() => {
         setRecordingTime((prev) => prev + 1);
       }, 1000);
@@ -117,61 +115,6 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
     setError("");
   };
 
-  //   const submitStory = async () => {
-  //     if (!audioBlob || !guestName.trim()) return;
-
-  //     setIsSubmitting(true);
-  //     setError("");
-
-  //     try {
-  //       // Upload audio file
-  //       const formData = new FormData();
-  //       formData.append("audio", audioBlob, `${Date.now()}_recording.webm`);
-  //       formData.append("token", token);
-
-  //       const uploadResponse = await fetch("/api/portal/upload-audio", {
-  //         method: "POST",
-  //         body: formData,
-  //       });
-
-  //       if (!uploadResponse.ok) {
-  //         throw new Error("Failed to upload audio");
-  //       }
-
-  //       const { audioUrl: uploadedUrl } = await uploadResponse.json();
-
-  //       // Submit story
-  //       const submissionResponse = await fetch("/api/portal/submit-story", {
-  //         method: "POST",
-  //         headers: { "Content-Type": "application/json" },
-  //         body: JSON.stringify({
-  //           token,
-  //           guestName: guestName.trim(),
-  //           storyTitle: storyTitle.trim() || null,
-  //           storyContent: "Voice recording submission",
-  //           audioUrl: uploadedUrl,
-  //         }),
-  //       });
-
-  //       if (!submissionResponse.ok) {
-  //         const errorData = await submissionResponse.json();
-  //         throw new Error(errorData.error || "Failed to submit story");
-  //       }
-
-  //       const { submissionId } = await submissionResponse.json();
-  //       onSuccess(submissionId);
-  //     } catch (err) {
-  //       console.error("Submission error:", err);
-  //       setError(
-  //         err instanceof Error
-  //           ? err.message
-  //           : "Failed to submit story. Please try again."
-  //       );
-  //     } finally {
-  //       setIsSubmitting(false);
-  //     }
-  //   };
-
   const submitStory = async () => {
     if (!audioBlob || !guestName.trim()) return;
 
@@ -179,20 +122,19 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
     setError("");
 
     try {
-      console.log("Starting story submission...");
+      // console.log("Starting story submission...");
 
-      // Upload audio file
       const formData = new FormData();
       formData.append("audio", audioBlob, `${Date.now()}_recording.webm`);
       formData.append("token", token);
 
-      console.log("Uploading audio...");
+      // console.log("Uploading audio...");
       const uploadResponse = await fetch("/api/portal/upload-audio", {
         method: "POST",
         body: formData,
       });
 
-      console.log("Upload response status:", uploadResponse.status);
+      // console.log("Upload response status:", uploadResponse.status);
 
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
@@ -201,10 +143,10 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
       }
 
       const { audioUrl: uploadedUrl } = await uploadResponse.json();
-      console.log("Audio uploaded successfully:", uploadedUrl);
+      // console.log("Audio uploaded successfully:", uploadedUrl);
 
       // Submit story
-      console.log("Submitting story...");
+      // console.log("Submitting story...");
       const submissionResponse = await fetch("/api/portal/submit-story", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -217,7 +159,7 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
         }),
       });
 
-      console.log("Submission response status:", submissionResponse.status);
+      // console.log("Submission response status:", submissionResponse.status);
 
       if (!submissionResponse.ok) {
         const errorData = await submissionResponse.json();
@@ -226,7 +168,7 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
       }
 
       const { submissionId } = await submissionResponse.json();
-      console.log("Story submitted successfully:", submissionId);
+      // console.log("Story submitted successfully:", submissionId);
       onSuccess(submissionId);
     } catch (err) {
       console.error("Submission error:", err);
@@ -249,7 +191,6 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full">
-        {/* Back Button */}
         <button
           onClick={onBack}
           className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 mb-6 transition-colors"
@@ -270,7 +211,6 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
           <span>Back</span>
         </button>
 
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Record Your Story
@@ -280,14 +220,12 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
           </p>
         </div>
 
-        {/* Prompt Display */}
         <div className="bg-gradient-to-r from-purple-100 to-indigo-100 rounded-2xl p-6 mb-8">
           <p className="text-lg text-gray-900 leading-relaxed">
-            {invitation.prompt_text}
+            {invitation.prompt_content}
           </p>
         </div>
 
-        {/* Recording Interface */}
         <div className="text-center mb-8">
           {/* Recording Visualizer */}
           <div className="relative mb-6">
@@ -370,7 +308,6 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
           </div>
         </div>
 
-        {/* Audio Playback */}
         {audioUrl && recordingState === "stopped" && (
           <div className="bg-gray-50 rounded-xl p-6 mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -383,7 +320,6 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
           </div>
         )}
 
-        {/* Story Title (Optional) */}
         {recordingState === "stopped" && (
           <div className="mb-6">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -400,7 +336,6 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
           </div>
         )}
 
-        {/* Error Display */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
             <div className="flex items-center space-x-2">
@@ -423,7 +358,6 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
           </div>
         )}
 
-        {/* Submit Button */}
         {recordingState === "stopped" && (
           <button
             onClick={submitStory}
@@ -445,7 +379,6 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
           </button>
         )}
 
-        {/* Recording Guidelines */}
         {recordingState === "idle" && (
           <div className="mt-8 text-center">
             <p className="text-sm text-gray-600 mb-2">
