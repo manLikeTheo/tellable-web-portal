@@ -1,7 +1,6 @@
 // pages/portal/[token].tsx
 import { GetServerSideProps } from "next";
-import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabaseServer } from "@/lib/supabase-server";
 import PortalApp from "../../components/portal/PortalApp";
 
 interface InvitationDetails {
@@ -76,7 +75,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServer
       .rpc("get_invitation_details_final_v4", { p_token: token })
       .single();
     // console.log("RPC Response data details:", data);
