@@ -26,18 +26,40 @@ export default async function handler(
   }
 
   try {
-    // console.log("Calling RPC function...");
+    // --- NEW/UPDATED LOGIC ---
+    // 1. Transcribe before submission.
 
+    let transcript = "";
+    if (audioUrl) {
+      const { data: transcriptionData, error: transcribeError } =
+        await supabase.functions.invoke("transcribe-audio", {
+          body: { audioPath: audioUrl },
+        });
+
+      if (transcribeError || transcriptionData.transcript) {
+        return res.status(500).json({
+          error: "Failed to transcribe audio. Please try again.",
+        });
+      }
+
+      transcript = transcriptionData.transcript;
+    } else {
+      //Fallback if no audio(edge case)
+      return res.status(400).json({
+        error: "Audio recording is required. Please try again.",
+      });
+    }
+
+    //2. Call RPC with transcript as story_content
     const { data, error } = await supabase
       .rpc("handle_guest_submission_prompt_specific", {
         p_invitation_token: token,
         p_guest_name: guestName,
-        p_story_content: storyContent,
+        p_story_content: transcript,
         p_story_title: storyTitle ?? null,
         p_audio_url: audioUrl ?? null,
       })
       .single();
-    // console.log("RPC Response:", { data, error });
 
     const result = data as unknown as RpcReturn;
 
