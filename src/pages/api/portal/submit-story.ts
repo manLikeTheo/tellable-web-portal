@@ -36,7 +36,7 @@ export default async function handler(
           body: { audioPath: audioUrl },
         });
 
-      if (transcribeError || transcriptionData.transcript) {
+      if (transcribeError || !transcriptionData?.transcript) {
         return res.status(500).json({
           error: "Failed to transcribe audio. Please try again.",
         });
