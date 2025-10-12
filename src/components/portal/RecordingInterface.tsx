@@ -117,36 +117,45 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
 
   const submitStory = async () => {
     if (!audioBlob || !guestName.trim()) return;
-
     setIsSubmitting(true);
     setError("");
 
     try {
-      // console.log("Starting story submission...");
+      console.log("📤 Starting story submission...");
 
       const formData = new FormData();
       formData.append("audio", audioBlob, `${Date.now()}_recording.webm`);
       formData.append("token", token);
 
-      // console.log("Uploading audio...");
+      console.log("📤 Uploading audio to server...");
       const uploadResponse = await fetch("/api/portal/upload-audio", {
         method: "POST",
         body: formData,
       });
 
-      // console.log("Upload response status:", uploadResponse.status);
+      console.log("Upload response status:", uploadResponse.status);
 
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
-        console.error("Upload failed:", errorText);
+        console.error("❌ Upload failed:", errorText);
         throw new Error("Failed to upload audio");
       }
 
-      const { audioUrl: uploadedUrl } = await uploadResponse.json();
-      // console.log("Audio uploaded successfully:", uploadedUrl);
+      // Parse response ONCE
+      const uploadData = await uploadResponse.json();
+      console.log("✅ Audio uploaded successfully:", uploadData);
 
-      // Submit story
-      // console.log("Submitting story...");
+      // Extract data from parsed response
+      const { audioPath, audioUrl: uploadedUrl, bucket } = uploadData;
+
+      if (!audioPath) {
+        console.error("❌ No audioPath in upload response:", uploadData);
+        throw new Error("Server did not return audio path");
+      }
+
+      console.log("📝 Submitting story with audioPath:", audioPath);
+
+      // Submit story with BOTH audioPath (for transcription) and audioUrl (for storage)
       const submissionResponse = await fetch("/api/portal/submit-story", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -155,23 +164,26 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
           guestName: guestName.trim(),
           storyTitle: storyTitle.trim() || null,
           storyContent: "Voice recording submission",
+          audioPath,
           audioUrl: uploadedUrl,
         }),
       });
 
-      // console.log("Submission response status:", submissionResponse.status);
+      console.log("Submission response status:", submissionResponse.status);
 
       if (!submissionResponse.ok) {
         const errorData = await submissionResponse.json();
-        console.error("Submission failed:", errorData);
+        console.error("❌ Submission failed:", errorData);
         throw new Error(errorData.error || "Failed to submit story");
       }
 
-      const { submissionId } = await submissionResponse.json();
-      // console.log("Story submitted successfully:", submissionId);
-      onSuccess(submissionId);
+      const submissionData = await submissionResponse.json();
+      console.log("✅ Story submitted successfully:", submissionData);
+
+      // Pass only the submissionId, not the whole object
+      onSuccess(submissionData.submissionId);
     } catch (err) {
-      console.error("Submission error:", err);
+      console.error("💥 Submission error:", err);
       setError(
         err instanceof Error
           ? err.message

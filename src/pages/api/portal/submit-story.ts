@@ -19,38 +19,60 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { token, guestName, storyTitle, storyContent, audioUrl } = req.body;
+  const { token, guestName, storyTitle, audioUrl, audioPath } = req.body;
 
-  if (!token || !guestName || !storyContent) {
+  if (!token || !guestName) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
+  //Prioritize audioPath(in storagePath) over audioUrl(public URL)
+  const storagePathForTranscription = audioPath || audioUrl;
+
+  if (!storagePathForTranscription) {
+    return res
+      .status(400)
+      .json({ error: "Audio recording is required. Please try again." });
+  }
+
   try {
-    // --- NEW/UPDATED LOGIC ---
+    console.log("Received submission request: ", {
+      token: token.substring(0, 10),
+      guestName,
+      audioPath,
+      audioUrl,
+      storyTitle,
+    });
+
     // 1. Transcribe before submission.
+    console.log("🎙️ Starting transcription for:", storagePathForTranscription);
+    const { data: transcriptionData, error: transcribeError } =
+      await supabase.functions.invoke("transcribe-audio", {
+        body: { audioPath: storagePathForTranscription },
+      });
 
-    let transcript = "";
-    if (audioUrl) {
-      const { data: transcriptionData, error: transcribeError } =
-        await supabase.functions.invoke("transcribe-audio", {
-          body: { audioPath: audioUrl },
-        });
-
-      if (transcribeError || !transcriptionData?.transcript) {
-        return res.status(500).json({
-          error: "Failed to transcribe audio. Please try again.",
-        });
-      }
-
-      transcript = transcriptionData.transcript;
-    } else {
-      //Fallback if no audio(edge case)
-      return res.status(400).json({
-        error: "Audio recording is required. Please try again.",
+    if (transcribeError) {
+      console.error("Transcription Edeg Function Error: ", transcribeError);
+      return res.status(500).json({
+        error: "Failed to transcribe audio. Please try again.",
+        details: transcribeError.message || "Unknown transcription error",
       });
     }
 
-    //2. Call RPC with transcript as story_content
+    if (!transcriptionData || !transcriptionData.transcript) {
+      console.error("No transcript returned from edge function: ");
+      return res.status(500).json({
+        error:
+          "Transcription completed but no text was returned. Please try again.",
+      });
+    }
+
+    const transcript = transcriptionData.transcript;
+    console.log("Transcription successful:", {
+      length: transcript.length,
+      preview: transcript.substring(0, 50) + "...",
+    });
+
+    //2: Call RPC with real transcript as story_content
     const { data, error } = await supabase
       .rpc("handle_guest_submission_prompt_specific", {
         p_invitation_token: token,
@@ -64,7 +86,7 @@ export default async function handler(
     const result = data as unknown as RpcReturn;
 
     if (error || !result?.success) {
-      // console.log("RPC Error details:", error);
+      console.error("RPC Error details:", error);
       return res.status(400).json({
         error: result?.message ?? "Failed to submit story",
       });
@@ -77,11 +99,13 @@ export default async function handler(
       createdUserId: result.created_user_id ?? "",
     };
 
-    // console.log("Submission response:", response);
-
+    console.log("Story Submitted successfully:", response.submissionId);
     return res.status(200).json(response);
-  } catch (err) {
+  } catch (err: any) {
     console.error("Story submission error:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({
+      error: "Internal server error",
+      details: err.message || "Unknown server error",
+    });
   }
 }
