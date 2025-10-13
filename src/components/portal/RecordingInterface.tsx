@@ -23,6 +23,8 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string>("");
+  const [audioDuration, setAudioDuration] = useState<number>(0); // NEW: Track duration
+
   const [storyTitle, setStoryTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string>("");
@@ -31,6 +33,27 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
   const audioChunksRef = useRef<Blob[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // ADD: Helper function to get audio duration from blob
+  const getAudioDuration = (blob: Blob): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      const audio = new Audio();
+      const url = URL.createObjectURL(blob);
+
+      audio.addEventListener("loadedmetadata", () => {
+        const duration = Math.round(audio.duration);
+        URL.revokeObjectURL(url); //Clean up
+        resolve(duration);
+      });
+
+      audio.addEventListener("error", () => {
+        URL.revokeObjectURL(url); //Clean up
+        reject(new Error("Failed to get audio duration"));
+      });
+
+      audio.src = url;
+    });
+  };
 
   useEffect(() => {
     return () => {
@@ -68,12 +91,21 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         setAudioBlob(blob);
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
 
+        //Add: Get actual audio duration from blob
+        try {
+          const duration = await getAudioDuration(blob);
+          setAudioDuration(duration);
+          console.log("📏 Audio duration:", duration, "seconds");
+        } catch (error) {
+          console.warn("⚠️ Could not determine duration, using recording time");
+          setAudioDuration(recordingTime); //Fallback timer duration
+        }
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -111,6 +143,7 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
     setAudioBlob(null);
     setAudioUrl("");
     setRecordingTime(0);
+    setAudioDuration(0);
     setRecordingState("idle");
     setError("");
   };
@@ -122,10 +155,12 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
 
     try {
       console.log("📤 Starting story submission...");
+      console.log("📏 Audio duration:", audioDuration, "seconds");
 
       const formData = new FormData();
       formData.append("audio", audioBlob, `${Date.now()}_recording.webm`);
       formData.append("token", token);
+      formData.append("duration", audioDuration.toString());
 
       console.log("📤 Uploading audio to server...");
       const uploadResponse = await fetch("/api/portal/upload-audio", {
@@ -155,7 +190,7 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
 
       console.log("📝 Submitting story with audioPath:", audioPath);
 
-      // Submit story with BOTH audioPath (for transcription) and audioUrl (for storage)
+      // Submit story duration metadata
       const submissionResponse = await fetch("/api/portal/submit-story", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -166,6 +201,7 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
           storyContent: "Voice recording submission",
           audioPath,
           audioUrl: uploadedUrl,
+          duration: audioDuration,
         }),
       });
 
@@ -277,6 +313,14 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
                     ? "Recording..."
                     : "Recording complete"}
                 </p>
+                {/* New: ShoW actuaL duraTIon if different from recording time*/}
+                {recordingState === "stopped" &&
+                  audioDuration > 0 &&
+                  audioDuration !== recordingTime && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      Actual duration: {formatTime(audioDuration)}
+                    </p>
+                  )}
               </div>
             )}
           </div>
