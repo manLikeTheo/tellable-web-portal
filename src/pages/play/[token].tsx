@@ -1,11 +1,8 @@
-// pages/play/[token].tsx - SIMPLIFIED VERSION
-// Use this if the nested query still has issues
-// =======================================================
-
+// pages/play/[token].tsx - VISUAL VOICE VERSION
 import { GetServerSideProps } from "next";
 import Head from "next/head";
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase-server";
 
 interface MediaItem {
   id: string;
@@ -24,45 +21,78 @@ interface PlayPageProps {
   promptText?: string;
   contributorName?: string;
   contributorAvatar?: string | null;
+  contextPhoto?: string | null; // Photo uploaded with recording
   chapterTitle?: string;
   bookTitle?: string;
   authorName?: string;
   error?: string;
-  debugInfo?: any;
 }
 
-export default function PlayPage({
+export default function VisualVoicePlayPage({
   mediaItem,
   mediaUrl,
   promptText,
   contributorName,
   contributorAvatar,
+  contextPhoto,
   chapterTitle,
   bookTitle,
   authorName,
   error,
-  debugInfo,
 }: PlayPageProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState("0:00");
+  const [duration, setDuration] = useState("0:00");
   const audioRef = useRef<HTMLAudioElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Format time helper
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Audio progress tracking
   useEffect(() => {
-    const mediaElement =
-      mediaItem?.media_type === "audio" ? audioRef.current : videoRef.current;
-    if (mediaElement) {
-      mediaElement.play().catch(() => {
-        console.log("Auto-play prevented");
-      });
-    }
-  }, [mediaItem]);
+    const audio = audioRef.current;
+    if (!audio) return;
 
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development" && debugInfo) {
-      console.log("🔍 Debug Info:", debugInfo);
-    }
-  }, [debugInfo]);
+    const updateProgress = () => {
+      const current = audio.currentTime || 0;
+      const total = audio.duration || 1;
+      setProgress((current / total) * 100);
+      setCurrentTime(formatTime(current));
+    };
 
+    const updateDuration = () => {
+      setDuration(formatTime(audio.duration || 0));
+    };
+
+    audio.addEventListener("timeupdate", updateProgress);
+    audio.addEventListener("loadedmetadata", updateDuration);
+    audio.addEventListener("play", () => setIsPlaying(true));
+    audio.addEventListener("pause", () => setIsPlaying(false));
+
+    return () => {
+      audio.removeEventListener("timeupdate", updateProgress);
+      audio.removeEventListener("loadedmetadata", updateDuration);
+      audio.removeEventListener("play", () => setIsPlaying(true));
+      audio.removeEventListener("pause", () => setIsPlaying(false));
+    };
+  }, []);
+
+  // Toggle play/pause
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+  };
+
+  // Error state
   if (error || !mediaItem || !mediaUrl) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center p-4">
@@ -73,173 +103,154 @@ export default function PlayPage({
             content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
           />
         </Head>
-        <div className="bg-white rounded-3xl shadow-2xl p-10 text-center max-w-md animate-slideIn">
+        <div className="bg-white rounded-3xl shadow-2xl p-10 text-center max-w-md">
           <div className="text-6xl mb-4">😔</div>
           <h1 className="text-2xl font-bold text-red-600 mb-4">
             Story not found
           </h1>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-600">
             This story could not be found or has been removed.
           </p>
-          {process.env.NODE_ENV === "development" && debugInfo && (
-            <details className="text-left text-xs bg-gray-100 p-4 rounded mt-4">
-              <summary className="cursor-pointer font-semibold">
-                Debug Info
-              </summary>
-              <pre className="mt-2 overflow-auto">
-                {JSON.stringify(debugInfo, null, 2)}
-              </pre>
-            </details>
-          )}
         </div>
       </div>
     );
   }
 
-  const storyText = mediaItem.enhanced_text || mediaItem.caption || "";
-  const displayPrompt = promptText || "";
+  const displayPrompt = promptText || "A story to remember";
   const displayContributor = contributorName || "A Storyteller";
   const displayAvatar = contributorAvatar || null;
-  const displayChapter = chapterTitle || "A Chapter";
-  const displayBook = bookTitle || "A Memory Book";
-  const displayAuthor = authorName || displayContributor;
+  const hasContextPhoto = !!contextPhoto;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-indigo-600 to-purple-700 flex items-center justify-center p-4">
+    <div className="relative h-screen w-screen overflow-hidden bg-black">
       <Head>
-        <title>{`${displayChapter} | ${displayBook}`}</title>
-        <meta name="description" content={storyText.substring(0, 150)} />
-        <meta
-          property="og:title"
-          content={`${displayChapter} - ${displayBook}`}
-        />
-        <meta property="og:description" content={storyText.substring(0, 150)} />
+        <title>{`${displayContributor}'s Story | ${
+          bookTitle || "AwaChapter"
+        }`}</title>
+        <meta name="description" content={displayPrompt} />
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
         />
-        <meta name="theme-color" content="#7c3aed" />
+        <meta name="theme-color" content="#000000" />
       </Head>
 
-      <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden animate-slideIn">
-        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-6 md:p-8 text-center">
-          <h1 className="text-2xl md:text-3xl font-bold mb-2">
-            {displayChapter}
-          </h1>
-          <p className="text-purple-100 text-sm md:text-base">
-            From "{displayBook}" by {displayAuthor}
+      {/* Layer 1: Hero Background Image */}
+      {hasContextPhoto ? (
+        <img
+          src={contextPhoto}
+          alt="Story context"
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ filter: "brightness(0.6)" }}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-purple-800" />
+      )}
+
+      {/* Layer 2: Content Overlay */}
+      <div className="relative z-10 h-full flex flex-col justify-between p-6">
+        {/* Top: Prompt Text */}
+        <div className="bg-gradient-to-b from-black/80 via-black/50 to-transparent p-6 rounded-2xl">
+          <p className="text-white text-2xl md:text-3xl font-bold leading-tight">
+            {displayPrompt}
           </p>
+          {chapterTitle && (
+            <p className="text-purple-200 text-sm mt-3 font-medium">
+              From: {chapterTitle}
+            </p>
+          )}
         </div>
 
-        <div className="p-6 md:p-8">
-          <div className="flex items-center gap-4 pb-6 border-b border-gray-200 mb-6">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-xl font-semibold flex-shrink-0 shadow-lg">
-              {displayAvatar ? (
-                <img
-                  src={displayAvatar}
-                  alt={displayContributor}
-                  className="w-full h-full rounded-full object-cover"
-                />
-              ) : (
-                displayContributor.charAt(0).toUpperCase()
-              )}
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                {displayContributor}'s Story
-              </h3>
-              <p className="text-sm text-gray-500">Shared with love ❤️</p>
-            </div>
-          </div>
+        {/* Spacer to push controls to bottom */}
+        <div className="flex-1" />
 
-          {displayPrompt && (
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6">
-              <p className="text-blue-900 italic text-sm md:text-base">
-                💭 {displayPrompt}
-              </p>
-            </div>
-          )}
-
-          <div className="bg-gray-900 rounded-xl overflow-hidden shadow-lg mb-6">
-            {mediaItem.media_type === "audio" ? (
-              <audio
-                ref={audioRef}
-                className="w-full"
-                src={mediaUrl}
-                controls
-                preload="metadata"
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                style={{
-                  width: "100%",
-                  height: "54px",
-                  backgroundColor: "#1f2937",
-                }}
-              >
-                Your browser does not support audio playback.
-              </audio>
+        {/* Middle: Floating Speaker Avatar */}
+        <div className="mb-6 ml-0">
+          <div
+            className={`relative inline-block ${
+              isPlaying ? "animate-pulse-ring" : ""
+            }`}
+          >
+            {displayAvatar ? (
+              <img
+                src={displayAvatar}
+                alt={displayContributor}
+                className="w-20 h-20 rounded-full border-4 border-white shadow-2xl object-cover"
+              />
             ) : (
-              <video
-                ref={videoRef}
-                controls
-                playsInline
-                preload="metadata"
-                className="w-full max-h-96 bg-black"
-                src={mediaUrl}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-              >
-                Your browser does not support video playback.
-              </video>
+              <div className="w-20 h-20 rounded-full border-4 border-white shadow-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-bold">
+                {displayContributor.charAt(0).toUpperCase()}
+              </div>
+            )}
+            {isPlaying && (
+              <div className="absolute inset-0 rounded-full border-4 border-green-400 animate-ping" />
             )}
           </div>
-
-          {storyText && (
-            <div className="bg-gray-50 p-6 rounded-xl mb-6 shadow-inner">
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-sm md:text-base">
-                {storyText}
-              </p>
-            </div>
-          )}
-
-          <div className="text-center mt-6">
-            <span className="inline-block bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 px-5 py-2 rounded-full text-sm font-semibold shadow-sm">
-              ✨ Captured with AwaChapter
-            </span>
-          </div>
+          <p className="text-white font-semibold mt-2 text-sm drop-shadow-lg">
+            {displayContributor}
+          </p>
         </div>
 
-        <div className="border-t border-gray-200 p-6 text-center bg-gradient-to-b from-gray-50 to-white">
-          <p className="text-gray-600 text-sm mb-3">
-            Create your own family memory book
-          </p>
-          <a
-            href="https://awachapter.com"
-            className="inline-block bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Start Your Book
-          </a>
+        {/* Bottom: Audio Controls */}
+        <div className="bg-black/80 backdrop-blur-lg rounded-2xl p-5 shadow-2xl mb-4">
+          <audio ref={audioRef} src={mediaUrl} preload="metadata" />
+
+          <div className="flex items-center gap-4">
+            {/* Play/Pause Button */}
+            <button
+              onClick={togglePlay}
+              className="w-14 h-14 bg-white rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg flex-shrink-0"
+            >
+              {isPlaying ? (
+                <span className="text-2xl">⏸️</span>
+              ) : (
+                <span className="text-2xl ml-1">▶️</span>
+              )}
+            </button>
+
+            {/* Progress Bar */}
+            <div className="flex-1">
+              <div className="h-2 bg-gray-600 rounded-full overflow-hidden mb-2">
+                <div
+                  className="h-full bg-white transition-all duration-200 rounded-full"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-white text-xs">
+                <span>{currentTime}</span>
+                <span>{duration}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Footer CTA (Subtle) */}
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4 text-center">
+        <a
+          href="https://awachapter.com"
+          className="inline-block text-white/70 hover:text-white text-xs font-medium transition-colors"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          ✨ Created with AwaChapter
+        </a>
+      </div>
+
       <style jsx>{`
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
+        @keyframes pulse-ring {
+          0%,
+          100% {
+            transform: scale(1);
             opacity: 1;
-            transform: translateY(0);
+          }
+          50% {
+            transform: scale(1.08);
+            opacity: 0.85;
           }
         }
-        .animate-slideIn {
-          animation: slideIn 0.5s ease-out;
-        }
-        audio::-webkit-media-controls-panel {
-          background-color: #1f2937;
+        .animate-pulse-ring {
+          animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
         * {
           -webkit-tap-highlight-color: transparent;
@@ -254,10 +265,6 @@ export const getServerSideProps: GetServerSideProps = async ({
   req,
 }) => {
   const token = params?.token as string;
-  const debugInfo: any = {
-    token,
-    timestamp: new Date().toISOString(),
-  };
 
   if (!token) {
     return {
@@ -265,7 +272,6 @@ export const getServerSideProps: GetServerSideProps = async ({
         mediaItem: null,
         mediaUrl: null,
         error: "Invalid link",
-        debugInfo: { ...debugInfo, error: "No token" },
       },
     };
   }
@@ -274,7 +280,7 @@ export const getServerSideProps: GetServerSideProps = async ({
     console.log("🔍 Looking up token:", token);
 
     // Step 1: Fetch base media item
-    const { data: mediaItem, error: mediaError } = await supabase
+    const { data: mediaItem, error: mediaError } = await supabaseServer
       .from("media_items")
       .select(
         "id, media_path, media_type, enhanced_text, caption, prompt_id, chapter_id, user_id"
@@ -289,14 +295,39 @@ export const getServerSideProps: GetServerSideProps = async ({
           mediaItem: null,
           mediaUrl: null,
           error: "Story not found",
-          debugInfo: { ...debugInfo, mediaError },
         },
       };
     }
 
     console.log("✅ Found media item:", mediaItem.id);
 
-    // Step 2: Fetch related data separately
+    // Step 2: Check for context photo (photo uploaded WITH this recording)
+    let contextPhoto: string | null = null;
+    if (mediaItem.media_type === "audio") {
+      // Look for image media_item with same chapter_id, prompt_id, user_id
+      const { data: photoItems } = await supabaseServer
+        .from("media_items")
+        .select("media_path")
+        .eq("chapter_id", mediaItem.chapter_id)
+        .eq("prompt_id", mediaItem.prompt_id)
+        .eq("user_id", mediaItem.user_id)
+        .eq("media_type", "image")
+        .limit(1);
+
+      if (photoItems && photoItems.length > 0) {
+        const photoPath = photoItems[0].media_path;
+        if (photoPath.startsWith("http")) {
+          contextPhoto = photoPath;
+        } else {
+          const { data: signedPhotoUrl } = await supabaseServer.storage
+            .from("book-media")
+            .createSignedUrl(photoPath, 3600);
+          contextPhoto = signedPhotoUrl?.signedUrl || null;
+        }
+      }
+    }
+
+    // Step 3: Fetch related data
     let promptText = "";
     let contributorName = "A Storyteller";
     let contributorAvatar = null;
@@ -306,7 +337,7 @@ export const getServerSideProps: GetServerSideProps = async ({
 
     // Get prompt
     if (mediaItem.prompt_id) {
-      const { data: prompt } = await supabase
+      const { data: prompt } = await supabaseServer
         .from("prompts")
         .select("prompt_text")
         .eq("id", mediaItem.prompt_id)
@@ -316,7 +347,7 @@ export const getServerSideProps: GetServerSideProps = async ({
 
     // Get contributor
     if (mediaItem.user_id) {
-      const { data: profile } = await supabase
+      const { data: profile } = await supabaseServer
         .from("profiles")
         .select("full_name, avatar_url")
         .eq("id", mediaItem.user_id)
@@ -329,7 +360,7 @@ export const getServerSideProps: GetServerSideProps = async ({
 
     // Get chapter and book
     if (mediaItem.chapter_id) {
-      const { data: chapter } = await supabase
+      const { data: chapter } = await supabaseServer
         .from("chapters")
         .select("title, book_id")
         .eq("id", mediaItem.chapter_id)
@@ -338,8 +369,7 @@ export const getServerSideProps: GetServerSideProps = async ({
       if (chapter) {
         chapterTitle = chapter.title;
 
-        // Get book
-        const { data: book } = await supabase
+        const { data: book } = await supabaseServer
           .from("books")
           .select("title, user_id")
           .eq("id", chapter.book_id)
@@ -348,8 +378,7 @@ export const getServerSideProps: GetServerSideProps = async ({
         if (book) {
           bookTitle = book.title;
 
-          // Get author
-          const { data: author } = await supabase
+          const { data: author } = await supabaseServer
             .from("profiles")
             .select("full_name")
             .eq("id", book.user_id)
@@ -368,7 +397,7 @@ export const getServerSideProps: GetServerSideProps = async ({
     const ipAddress =
       (req.headers["x-forwarded-for"] as string)?.split(",")[0] || null;
 
-    await supabase.from("qr_scans").insert({
+    await supabaseServer.from("qr_scans").insert({
       media_item_id: mediaItem.id,
       user_agent: userAgent,
       device_type: deviceType,
@@ -380,9 +409,10 @@ export const getServerSideProps: GetServerSideProps = async ({
     if (mediaItem.media_path.startsWith("http")) {
       mediaUrl = mediaItem.media_path;
     } else {
-      const { data: signedUrlData, error: urlError } = await supabase.storage
-        .from("book-media")
-        .createSignedUrl(mediaItem.media_path, 3600);
+      const { data: signedUrlData, error: urlError } =
+        await supabaseServer.storage
+          .from("book-media")
+          .createSignedUrl(mediaItem.media_path, 3600);
 
       if (urlError || !signedUrlData) {
         return {
@@ -390,14 +420,13 @@ export const getServerSideProps: GetServerSideProps = async ({
             mediaItem: null,
             mediaUrl: null,
             error: "Media unavailable",
-            debugInfo: { ...debugInfo, urlError },
           },
         };
       }
       mediaUrl = signedUrlData.signedUrl;
     }
 
-    console.log("🎉 Playback ready!");
+    console.log("🎉 Visual Voice playback ready!");
 
     return {
       props: {
@@ -406,6 +435,7 @@ export const getServerSideProps: GetServerSideProps = async ({
         promptText,
         contributorName,
         contributorAvatar,
+        contextPhoto,
         chapterTitle,
         bookTitle,
         authorName,
@@ -418,7 +448,6 @@ export const getServerSideProps: GetServerSideProps = async ({
         mediaItem: null,
         mediaUrl: null,
         error: "Something went wrong",
-        debugInfo: { ...debugInfo, error: error.message },
       },
     };
   }
