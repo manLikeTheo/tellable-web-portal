@@ -1,6 +1,7 @@
 // components/portal/SuccessCelebration.tsx
 import React, { useEffect, useState } from "react";
 import { InvitationDetails } from "../../types/portal";
+import { CheckCircle, ArrowRight, Sparkles } from "lucide-react";
 
 interface SuccessPageProps {
   invitation: InvitationDetails;
@@ -85,17 +86,10 @@ const SuccessPage: React.FC<SuccessPageProps> = ({
           {/* Animated Checkmark */}
           <div className="relative mb-8">
             <div className="w-32 h-32 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-2xl animate-scale-in">
-              <svg
+              <CheckCircle
                 className="w-16 h-16 text-white animate-draw-check"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
                 strokeWidth={3}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M5 13l4 4L19 7" />
-              </svg>
+              />
             </div>
             {/* Pulsing Rings */}
             <div className="absolute inset-0 w-32 h-32 mx-auto rounded-full border-4 border-green-400 animate-ping opacity-30"></div>
@@ -224,19 +218,10 @@ const SuccessPage: React.FC<SuccessPageProps> = ({
               className="group inline-flex items-center gap-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 active:scale-95"
             >
               <span>Start Your Book</span>
-              <svg
+              <ArrowRight
                 className="w-5 h-5 group-hover:translate-x-1 transition-transform"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 7l5 5m0 0l-5 5m5-5H6"
-                />
-              </svg>
+                strokeWidth={2.5}
+              />
             </a>
           </div>
 
@@ -246,7 +231,10 @@ const SuccessPage: React.FC<SuccessPageProps> = ({
             style={{ animationDelay: "800ms" }}
           >
             <p className="text-gray-400 text-xs">
-              ✨ This page will remain open for your reference
+              <div className="flex items-center justify-center gap-2">
+                <Sparkles className="w-4 h-4 text-gray-400" strokeWidth={2} />
+                <span>This page will remain open for your reference</span>
+              </div>
             </p>
           </div>
         </div>

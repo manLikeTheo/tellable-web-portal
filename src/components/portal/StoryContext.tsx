@@ -1,7 +1,13 @@
 // components/portal/StoryContext.tsx
 import React, { useState, useEffect } from "react";
 import { InvitationDetails } from "../../types/portal";
-
+import {
+  BookOpen,
+  BookMarked,
+  MessageCircle,
+  Lightbulb,
+  ArrowRight,
+} from "lucide-react";
 interface StoryContextProps {
   invitation: InvitationDetails;
   onNext: () => void;
@@ -73,7 +79,12 @@ const StoryContext: React.FC<StoryContextProps> = ({
           >
             <div className="flex items-center gap-4 mb-3">
               <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center shadow-md">
-                <span className="text-3xl">📚</span>
+                <span className="text-3xl">
+                  <BookOpen
+                    className="w-10 h-10 text-purple-600"
+                    strokeWidth={2}
+                  />
+                </span>
               </div>
               <div>
                 <p className="text-purple-700 text-xs font-bold uppercase tracking-wider">
@@ -93,7 +104,12 @@ const StoryContext: React.FC<StoryContextProps> = ({
               style={{ animationDelay: "400ms" }}
             >
               <div className="flex items-center gap-3">
-                <span className="text-2xl">📖</span>
+                <span className="text-2xl">
+                  <BookMarked
+                    className="w-7 h-7 text-indigo-600"
+                    strokeWidth={2}
+                  />
+                </span>
                 <div>
                   <p className="text-indigo-700 text-xs font-semibold uppercase">
                     Chapter
@@ -115,7 +131,12 @@ const StoryContext: React.FC<StoryContextProps> = ({
             <div className="relative bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-8 shadow-xl">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                  <span className="text-xl">💭</span>
+                  <span className="text-xl">
+                    <MessageCircle
+                      className="w-6 h-6 text-white"
+                      strokeWidth={2.5}
+                    />
+                  </span>
                 </div>
                 <span className="text-white/90 text-sm font-bold uppercase tracking-wider">
                   Your Question
@@ -155,7 +176,9 @@ const StoryContext: React.FC<StoryContextProps> = ({
             style={{ animationDelay: "700ms" }}
           >
             <div className="flex items-start gap-3">
-              <span className="text-2xl">💡</span>
+              <span className="text-2xl">
+                <Lightbulb className="w-7 h-7 text-gray-700" strokeWidth={2} />
+              </span>
               <div>
                 <p className="text-gray-900 font-bold text-sm mb-2">
                   What makes a great story?
@@ -178,7 +201,9 @@ const StoryContext: React.FC<StoryContextProps> = ({
           >
             <div className="flex items-center justify-center gap-3">
               <span>Next: Get Ready</span>
-              <span className="text-2xl">→</span>
+              <span className="text-2xl">
+                <ArrowRight className="w-6 h-6" strokeWidth={2.5} />
+              </span>
             </div>
           </button>
         </div>

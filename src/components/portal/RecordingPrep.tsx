@@ -1,6 +1,19 @@
 // components/portal/RecordingPrep.tsx
 import React, { useState, useEffect, useRef } from "react";
 import { InvitationDetails } from "../../types/portal";
+import {
+  Mic,
+  User,
+  Check,
+  AlertCircle,
+  ChevronDown,
+  Lightbulb,
+  Headphones,
+  MessageCircle,
+  Clock,
+  RotateCcw,
+  CircleDot,
+} from "lucide-react";
 
 interface RecordingPrepProps {
   invitation: InvitationDetails;
@@ -40,7 +53,10 @@ const RecordingPrep: React.FC<RecordingPrepProps> = ({
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
       }
-      if (audioContextRef.current) {
+      if (
+        audioContextRef.current &&
+        audioContextRef.current.state !== "closed"
+      ) {
         audioContextRef.current.close();
       }
     };
@@ -102,28 +118,24 @@ const RecordingPrep: React.FC<RecordingPrepProps> = ({
 
   const tips = [
     {
-      icon: "🎧",
+      icon: Headphones,
       title: "Find a quiet spot",
-      detail:
-        "Background noise can be distracting. Find a peaceful place where you won't be interrupted.",
+      detail: "Background noise can be distracting...",
     },
     {
-      icon: "💬",
+      icon: MessageCircle,
       title: "Speak naturally",
-      detail:
-        "Talk like you're having a conversation with a friend. Your natural voice is perfect!",
+      detail: "Talk like you're having a conversation...",
     },
     {
-      icon: "⏰",
+      icon: Clock,
       title: "Take your time",
-      detail:
-        "There's no rush. Pause when you need to think. You can always re-record.",
+      detail: "There's no rush...",
     },
     {
-      icon: "🔄",
+      icon: RotateCcw,
       title: "You can re-record",
-      detail:
-        "Not happy with your first take? No problem! You can record as many times as you'd like.",
+      detail: "Not happy with your first take?...",
     },
   ];
 
@@ -162,7 +174,9 @@ const RecordingPrep: React.FC<RecordingPrepProps> = ({
             style={{ animationDelay: "200ms" }}
           >
             <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <span className="text-4xl">🎤</span>
+              <span className="text-4xl">
+                <Mic className="w-12 h-12 text-white" strokeWidth={2.5} />
+              </span>
             </div>
             <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">
               Let's Get Ready
@@ -178,7 +192,10 @@ const RecordingPrep: React.FC<RecordingPrepProps> = ({
             style={{ animationDelay: "300ms" }}
           >
             <label className="block text-gray-900 font-bold text-lg mb-3">
-              👤 Confirm your name
+              <div className="flex items-center gap-2">
+                <User className="w-5 h-5" strokeWidth={2} />
+                <span>Confirm your name</span>
+              </div>
             </label>
             <input
               type="text"
@@ -199,7 +216,10 @@ const RecordingPrep: React.FC<RecordingPrepProps> = ({
             style={{ animationDelay: "400ms" }}
           >
             <label className="block text-gray-900 font-bold text-lg mb-3">
-              🎙️ Microphone Check
+              <div className="flex items-center gap-2">
+                <Mic className="w-5 h-5" strokeWidth={2} />
+                <span>Microphone Check</span>
+              </div>
             </label>
 
             {micPermission === "pending" && (
@@ -215,7 +235,9 @@ const RecordingPrep: React.FC<RecordingPrepProps> = ({
               <div className="bg-green-50 border-2 border-green-200 rounded-xl p-5">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-xl">✓</span>
+                    <span className="text-white text-xl">
+                      <Check className="w-6 h-6 text-white" strokeWidth={3} />
+                    </span>
                   </div>
                   <div>
                     <p className="text-green-900 font-bold">
@@ -257,7 +279,12 @@ const RecordingPrep: React.FC<RecordingPrepProps> = ({
             {micPermission === "denied" && (
               <div className="bg-red-50 border-2 border-red-200 rounded-xl p-5">
                 <div className="flex items-start gap-3">
-                  <span className="text-2xl">⚠️</span>
+                  <span className="text-2xl">
+                    <AlertCircle
+                      className="w-7 h-7 text-red-600"
+                      strokeWidth={2}
+                    />
+                  </span>
                   <div>
                     <p className="text-red-900 font-bold mb-2">
                       Microphone Access Denied
@@ -284,7 +311,10 @@ const RecordingPrep: React.FC<RecordingPrepProps> = ({
             style={{ animationDelay: "500ms" }}
           >
             <label className="block text-gray-900 font-bold text-lg mb-4">
-              💡 Quick Tips for a Great Story
+              <div className="flex items-center gap-2">
+                <Lightbulb className="w-5 h-5" strokeWidth={2} />
+                <span>Quick Tips for a Great Story</span>
+              </div>
             </label>
             <div className="space-y-3">
               {tips.map((tip, index) => (
@@ -298,17 +328,21 @@ const RecordingPrep: React.FC<RecordingPrepProps> = ({
                     }
                     className="w-full px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors text-left"
                   >
-                    <span className="text-2xl flex-shrink-0">{tip.icon}</span>
+                    <span className="text-2xl flex-shrink-0">
+                      <tip.icon
+                        className="w-7 h-7 text-purple-600 flex-shrink-0"
+                        strokeWidth={2}
+                      />
+                    </span>
                     <span className="flex-1 font-semibold text-gray-900">
                       {tip.title}
                     </span>
-                    <span
-                      className={`text-gray-400 transition-transform ${
+                    <ChevronDown
+                      className={`w-5 h-5 text-gray-400 transition-transform ${
                         expandedTip === index ? "rotate-180" : ""
                       }`}
-                    >
-                      ▼
-                    </span>
+                      strokeWidth={2}
+                    />
                   </button>
                   {expandedTip === index && (
                     <div className="px-5 pb-4 pt-2 bg-gray-50 animate-expand-down">
@@ -334,7 +368,11 @@ const RecordingPrep: React.FC<RecordingPrepProps> = ({
             style={{ animationDelay: "600ms" }}
           >
             <div className="flex items-center justify-center gap-3">
-              <span className="text-2xl">●</span>
+              <CircleDot
+                className="w-6 h-6"
+                strokeWidth={2.5}
+                fill="currentColor"
+              />
               <span>Start Recording</span>
             </div>
           </button>

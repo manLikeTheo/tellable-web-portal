@@ -1,6 +1,16 @@
 // components/portal/ReviewSubmit.tsx
 import React, { useState, useEffect, useRef } from "react";
 import { InvitationDetails } from "../../types/portal";
+import {
+  Sparkles,
+  Play,
+  Pause,
+  RotateCcw,
+  Send,
+  Lightbulb,
+  Edit3,
+  AlertCircle,
+} from "lucide-react";
 
 interface ReviewSubmitProps {
   invitation: InvitationDetails;
@@ -169,7 +179,7 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             style={{ animationDelay: "200ms" }}
           >
             <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <span className="text-4xl">✨</span>
+              <Sparkles className="w-12 h-12 text-white" strokeWidth={2} />
             </div>
             <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">
               Review Your Story
@@ -185,7 +195,9 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             style={{ animationDelay: "300ms" }}
           >
             <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-8 shadow-xl">
-              <audio ref={audioRef} src={audioUrl} preload="metadata" />
+              {audioUrl && (
+                <audio ref={audioRef} src={audioUrl} preload="metadata" />
+              )}
 
               {/* Custom Audio Player */}
               <div className="space-y-6">
@@ -214,9 +226,17 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
                     className="w-16 h-16 bg-white rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-lg"
                   >
                     {isPlaying ? (
-                      <span className="text-3xl text-purple-600">⏸</span>
+                      <Pause
+                        className="w-8 h-8 text-purple-600"
+                        fill="currentColor"
+                        strokeWidth={0}
+                      />
                     ) : (
-                      <span className="text-3xl text-purple-600 ml-1">▶</span>
+                      <Play
+                        className="w-8 h-8 text-purple-600 ml-1"
+                        fill="currentColor"
+                        strokeWidth={0}
+                      />
                     )}
                   </button>
 
@@ -245,7 +265,10 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             style={{ animationDelay: "400ms" }}
           >
             <label className="block text-gray-900 font-bold text-lg mb-3">
-              ✏️ Give your story a title (optional)
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-5 h-5" strokeWidth={2} />
+                <span>Give your story a title (optional)</span>
+              </div>
             </label>
             <input
               type="text"
@@ -267,7 +290,7 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
           {error && (
             <div className="bg-red-50 border-2 border-red-200 rounded-xl p-5 mb-6 animate-shake">
               <div className="flex items-start gap-3">
-                <span className="text-2xl">⚠️</span>
+                <AlertCircle className="w-7 h-7 text-red-600" strokeWidth={2} />
                 <div>
                   <p className="text-red-900 font-bold mb-1">
                     Submission Error
@@ -289,7 +312,7 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
               className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="flex items-center justify-center gap-2">
-                <span className="text-xl">🔄</span>
+                <RotateCcw className="w-5 h-5" strokeWidth={2.5} />
                 <span>Re-record</span>
               </div>
             </button>
@@ -306,7 +329,7 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
                 </div>
               ) : (
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-xl">✨</span>
+                  <Send className="w-5 h-5" strokeWidth={2.5} />
                   <span>Share Your Story</span>
                 </div>
               )}
@@ -319,7 +342,7 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             style={{ animationDelay: "600ms" }}
           >
             <div className="flex items-center gap-3">
-              <span className="text-xl">💡</span>
+              <Lightbulb className="w-6 h-6 text-blue-600" strokeWidth={2} />
               <p className="text-blue-800 text-sm">
                 <strong>Pro tip:</strong> Listen to your recording before
                 submitting to make sure you're happy with it!

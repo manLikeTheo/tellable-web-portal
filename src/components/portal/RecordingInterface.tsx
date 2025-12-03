@@ -1,6 +1,7 @@
 // components/portal/RecordingInterface.tsx
 import React, { useState, useRef, useEffect } from "react";
 import { InvitationDetails } from "../../types/portal";
+import { MessageCircle, Square, Lightbulb } from "lucide-react";
 
 interface RecordingInterfaceProps {
   invitation: InvitationDetails;
@@ -194,7 +195,10 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
           {/* Sticky Prompt */}
           <div className="bg-gradient-to-r from-purple-100 to-indigo-100 rounded-2xl p-6 mb-8 border-2 border-purple-200">
             <div className="flex items-center gap-3 mb-2">
-              <span className="text-xl">💭</span>
+              <MessageCircle
+                className="w-6 h-6 text-purple-600"
+                strokeWidth={2}
+              />
               <span className="text-purple-700 text-xs font-bold uppercase">
                 Your Question
               </span>
@@ -255,7 +259,11 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
                 className="group bg-gray-900 hover:bg-gray-800 text-white px-12 py-5 rounded-2xl font-black text-xl transition-all shadow-xl hover:shadow-2xl transform hover:scale-105 active:scale-95"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 bg-white rounded"></div>
+                  <Square
+                    className="w-5 h-5 text-white"
+                    fill="currentColor"
+                    strokeWidth={0}
+                  />
                   <span>Stop Recording</span>
                 </div>
               </button>
@@ -265,7 +273,7 @@ const RecordingInterface: React.FC<RecordingInterfaceProps> = ({
           {/* Tips Footer */}
           <div className="mt-8 bg-blue-50 border-2 border-blue-200 rounded-xl p-5">
             <div className="flex items-start gap-3">
-              <span className="text-2xl">💡</span>
+              <Lightbulb className="w-7 h-7 text-blue-600" strokeWidth={2} />
               <div>
                 <p className="text-blue-900 font-bold text-sm mb-1">Pro Tip</p>
                 <p className="text-blue-800 text-sm">

@@ -1,6 +1,7 @@
 // components/portal/WelcomeSplash.tsx
 import React, { useEffect, useState } from "react";
 import { InvitationDetails } from "../../types/portal";
+import { Gift, BookOpen, ArrowRight } from "lucide-react";
 
 interface WelcomeSplashProps {
   invitation: InvitationDetails;
@@ -36,7 +37,12 @@ const WelcomeSplash: React.FC<WelcomeSplashProps> = ({
         {/* Animated Gift Icon */}
         <div className="mb-8 relative">
           <div className="w-32 h-32 mx-auto bg-white/20 backdrop-blur-xl rounded-full flex items-center justify-center animate-scale-in shadow-2xl border-4 border-white/30">
-            <div className="text-6xl animate-bounce-gentle">🎁</div>
+            <div className="text-6xl animate-bounce-gentle">
+              <Gift
+                className="w-16 h-16 text-white animate-bounce-gentle"
+                strokeWidth={2.5}
+              />
+            </div>
           </div>
           {/* Pulsing Ring */}
           <div className="absolute inset-0 w-32 h-32 mx-auto rounded-full border-4 border-white/40 animate-ping"></div>
@@ -44,7 +50,7 @@ const WelcomeSplash: React.FC<WelcomeSplashProps> = ({
 
         {/* Heading */}
         <h1 className="text-4xl md:text-5xl font-black text-white mb-4 drop-shadow-lg animate-fade-in-up">
-          You've Been Invited! ✨
+          You've Been Invited!
         </h1>
 
         {/* Personal Message */}
@@ -65,7 +71,9 @@ const WelcomeSplash: React.FC<WelcomeSplashProps> = ({
           style={{ animationDelay: "400ms" }}
         >
           <div className="flex items-center justify-center gap-3">
-            <span className="text-3xl">📚</span>
+            <span className="text-3xl">
+              <BookOpen className="w-8 h-8 text-white" strokeWidth={2} />
+            </span>
             <div className="text-left">
               <p className="text-white/70 text-xs font-semibold uppercase tracking-wider">
                 Contributing to
@@ -87,7 +95,7 @@ const WelcomeSplash: React.FC<WelcomeSplashProps> = ({
           <div className="relative flex items-center justify-center gap-3">
             <span>Continue</span>
             <span className="text-2xl group-hover:translate-x-1 transition-transform">
-              →
+              <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
             </span>
           </div>
         </button>
