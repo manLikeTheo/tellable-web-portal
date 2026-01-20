@@ -4,6 +4,8 @@ export interface InvitationDetails {
   book_id: string;
   book_title: string;
   inviter_name: string;
+  inviter_avatar?: string;
+  book_cover_path?: string;
   prompt_id?: number;
   prompt_content?: string;
   chapter_title?: string;

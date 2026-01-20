@@ -1,7 +1,7 @@
 // components/portal/WelcomeSplash.tsx
 import React, { useEffect, useState } from "react";
 import { InvitationDetails } from "../../types/portal";
-import { Gift, BookOpen, ArrowRight } from "lucide-react";
+import { BookOpen, ArrowRight, Shield } from "lucide-react";
 
 interface WelcomeSplashProps {
   invitation: InvitationDetails;
@@ -15,17 +15,16 @@ const WelcomeSplash: React.FC<WelcomeSplashProps> = ({
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Trigger fade-in animation
     const timer = setTimeout(() => setIsVisible(true), 100);
     return () => clearTimeout(timer);
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-indigo-600 to-purple-700 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl animate-float-delayed"></div>
+        <div className="absolute top-20 left-10 w-72 h-72 bg-yellow-600/10 rounded-full blur-3xl animate-float"></div>
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-yellow-500/10 rounded-full blur-3xl animate-float-delayed"></div>
       </div>
 
       {/* Main Content */}
@@ -34,19 +33,56 @@ const WelcomeSplash: React.FC<WelcomeSplashProps> = ({
           isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
         }`}
       >
-        {/* Animated Gift Icon */}
-        <div className="mb-8 relative">
-          <div className="w-32 h-32 mx-auto bg-white/20 backdrop-blur-xl rounded-full flex items-center justify-center animate-scale-in shadow-2xl border-4 border-white/30">
-            <div className="text-6xl animate-bounce-gentle">
-              <Gift
-                className="w-16 h-16 text-white animate-bounce-gentle"
-                strokeWidth={2.5}
+        {/* AwaChapter Logo - Top */}
+        <div className="mb-4 animate-fade-in">
+          <img
+            src="/awachapter-logo.png"
+            alt="AwaChapter"
+            className="h-24 w-auto mx-auto"
+          />
+        </div>
+
+        {/* Creator Avatar with Pulsing Animation */}
+        <div className="mb-6 relative">
+          {invitation.inviter_avatar ? (
+            <div className="w-24 h-24 mx-auto rounded-full border-4 border-yellow-500/30 overflow-hidden bg-gray-800 shadow-2xl animate-scale-in">
+              <img
+                src={invitation.inviter_avatar}
+                alt={invitation.inviter_name}
+                className="w-full h-full object-cover"
               />
             </div>
+          ) : (
+            <div className="w-24 h-24 mx-auto rounded-full border-4 border-yellow-500/30 bg-gradient-to-br from-yellow-600 to-yellow-800 shadow-2xl animate-scale-in flex items-center justify-center">
+              <span className="text-white text-3xl font-bold">
+                {invitation.inviter_name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+          )}
+
+          {/* Pulsing Ring Animation */}
+          <div className="absolute inset-0 w-24 h-24 mx-auto rounded-full border-4 border-yellow-500/40 animate-ping"></div>
+
+          {/* Verified Badge */}
+          <div className="absolute bottom-0 right-1/2 translate-x-12 w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center shadow-lg border-2 border-yellow-500">
+            <Shield
+              className="w-4 h-4 text-yellow-500"
+              fill="currentColor"
+              strokeWidth={0}
+            />
           </div>
-          {/* Pulsing Ring */}
-          <div className="absolute inset-0 w-32 h-32 mx-auto rounded-full border-4 border-white/40 animate-ping"></div>
         </div>
+
+        {/* Animated Gift Icon */}
+        {/* <div className="mb-6 relative">
+          <div className="w-20 h-20 mx-auto bg-yellow-500/20 backdrop-blur-xl rounded-full flex items-center justify-center animate-scale-in shadow-2xl border-4 border-yellow-500/30">
+            <Gift
+              className="w-10 h-10 text-yellow-400 animate-bounce-gentle"
+              strokeWidth={2.5}
+            />
+          </div>
+          <div className="absolute inset-0 w-20 h-20 mx-auto rounded-full border-4 border-yellow-500/40 animate-ping"></div>
+        </div> */}
 
         {/* Heading */}
         <h1 className="text-4xl md:text-5xl font-black text-white mb-4 drop-shadow-lg animate-fade-in-up">
@@ -55,11 +91,13 @@ const WelcomeSplash: React.FC<WelcomeSplashProps> = ({
 
         {/* Personal Message */}
         <div
-          className="bg-white/20 backdrop-blur-lg rounded-2xl p-6 mb-8 border border-white/30 shadow-xl animate-fade-in-up"
+          className="bg-gray-800/80 backdrop-blur-lg rounded-2xl p-6 mb-6 border border-yellow-500/20 shadow-xl animate-fade-in-up"
           style={{ animationDelay: "200ms" }}
         >
-          <p className="text-white text-lg leading-relaxed">
-            <span className="font-bold text-xl">{invitation.inviter_name}</span>{" "}
+          <p className="text-gray-100 text-lg leading-relaxed">
+            <span className="font-bold text-xl text-yellow-400">
+              {invitation.inviter_name}
+            </span>{" "}
             wants to preserve a precious memory with you in their family story
             collection
           </p>
@@ -67,15 +105,23 @@ const WelcomeSplash: React.FC<WelcomeSplashProps> = ({
 
         {/* Book Preview */}
         <div
-          className="bg-white/10 backdrop-blur-md rounded-xl p-4 mb-8 border border-white/20 animate-fade-in-up"
+          className="bg-gray-800/60 backdrop-blur-md rounded-xl p-4 mb-6 border border-yellow-500/20 animate-fade-in-up"
           style={{ animationDelay: "400ms" }}
         >
           <div className="flex items-center justify-center gap-3">
-            <span className="text-3xl">
-              <BookOpen className="w-8 h-8 text-white" strokeWidth={2} />
-            </span>
+            {invitation.book_cover_path ? (
+              <div className="w-12 h-12 rounded-lg overflow-hidden border-2 border-yellow-500/30">
+                <img
+                  src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/${invitation.book_cover_path}`}
+                  alt={invitation.book_title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <BookOpen className="w-8 h-8 text-yellow-400" strokeWidth={2} />
+            )}
             <div className="text-left">
-              <p className="text-white/70 text-xs font-semibold uppercase tracking-wider">
+              <p className="text-yellow-500/70 text-xs font-semibold uppercase tracking-wider">
                 Contributing to
               </p>
               <p className="text-white text-lg font-bold">
@@ -85,27 +131,43 @@ const WelcomeSplash: React.FC<WelcomeSplashProps> = ({
           </div>
         </div>
 
+        {/* Trust Signals */}
+        <div
+          className="bg-gray-800/60 backdrop-blur-md rounded-xl p-4 mb-8 border border-yellow-500/20 animate-fade-in-up"
+          style={{ animationDelay: "500ms" }}
+        >
+          <div className="flex items-center justify-center gap-6 text-gray-300 text-xs">
+            <div className="flex items-center gap-1">
+              <Shield className="w-4 h-4 text-yellow-500" strokeWidth={2} />
+              <span>Private & Secure</span>
+            </div>
+            <div className="w-px h-4 bg-yellow-500/30"></div>
+            <div className="flex items-center gap-1">
+              <span>⏱️</span>
+              <span>2-3 minutes</span>
+            </div>
+          </div>
+        </div>
+
         {/* Continue Button */}
         <button
           onClick={onContinue}
-          className="group relative w-full bg-white text-purple-700 py-5 px-8 rounded-2xl font-black text-xl shadow-2xl hover:shadow-white/30 transition-all transform hover:scale-[1.03] active:scale-[0.98] overflow-hidden animate-fade-in-up"
+          className="group relative w-full bg-gradient-to-r from-yellow-600 via-yellow-500 to-yellow-600 text-gray-900 py-5 px-8 rounded-2xl font-black text-xl shadow-2xl hover:shadow-yellow-500/30 transition-all transform hover:scale-[1.03] active:scale-[0.98] overflow-hidden animate-fade-in-up"
           style={{ animationDelay: "600ms" }}
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-100 to-indigo-100 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-yellow-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
           <div className="relative flex items-center justify-center gap-3">
             <span>Continue</span>
-            <span className="text-2xl group-hover:translate-x-1 transition-transform">
-              <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-            </span>
+            <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
           </div>
         </button>
 
         {/* Footer Note */}
         <p
-          className="text-white/60 text-sm mt-6 animate-fade-in"
+          className="text-gray-400 text-sm mt-6 animate-fade-in"
           style={{ animationDelay: "800ms" }}
         >
-          Takes about 2-3 minutes • No account required
+          No account required • Your voice matters
         </p>
       </div>
 

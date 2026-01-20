@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { InvitationDetails } from "../../types/portal";
 import {
-  Sparkles,
   Play,
   Pause,
   RotateCcw,
@@ -10,6 +9,7 @@ import {
   Lightbulb,
   Edit3,
   AlertCircle,
+  Headphones,
 } from "lucide-react";
 
 interface ReviewSubmitProps {
@@ -95,7 +95,6 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
     setError("");
 
     try {
-      // Upload audio
       const formData = new FormData();
       formData.append("audio", audioBlob, `${Date.now()}_recording.webm`);
       formData.append("token", token);
@@ -117,7 +116,6 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
         throw new Error("Server did not return audio path");
       }
 
-      // Submit story
       const submissionResponse = await fetch("/api/portal/submit-story", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -156,20 +154,20 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
     : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         {/* Progress Indicator */}
         <div className="flex items-center justify-center gap-2 mb-8 animate-fade-in">
-          <div className="w-3 h-3 rounded-full bg-purple-600"></div>
-          <div className="w-3 h-3 rounded-full bg-purple-600"></div>
-          <div className="w-3 h-3 rounded-full bg-purple-600"></div>
-          <div className="w-3 h-3 rounded-full bg-purple-600"></div>
-          <div className="w-3 h-3 rounded-full bg-purple-300"></div>
+          <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+          <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+          <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+          <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+          <div className="w-3 h-3 rounded-full bg-yellow-500/40"></div>
         </div>
 
         {/* Main Card */}
         <div
-          className={`bg-white rounded-3xl shadow-2xl p-8 md:p-10 transition-all duration-700 ${
+          className={`bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-2xl p-8 md:p-10 border border-yellow-500/20 transition-all duration-700 ${
             isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
           }`}
         >
@@ -178,13 +176,13 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             className="text-center mb-8 animate-fade-in-up"
             style={{ animationDelay: "200ms" }}
           >
-            <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <Sparkles className="w-12 h-12 text-white" strokeWidth={2} />
+            <div className="w-20 h-20 bg-gradient-to-br from-green-600 to-emerald-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <Headphones className="w-12 h-12 text-white" strokeWidth={2} />
             </div>
-            <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">
+            <h1 className="text-3xl md:text-4xl font-black text-white mb-2">
               Review Your Story
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-300">
               Listen to your recording before sharing
             </p>
           </div>
@@ -194,14 +192,14 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             className="mb-8 animate-fade-in-up"
             style={{ animationDelay: "300ms" }}
           >
-            <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-8 shadow-xl">
+            <div className="bg-gradient-to-br from-yellow-600 to-yellow-700 rounded-2xl p-8 shadow-xl">
               {audioUrl && (
                 <audio ref={audioRef} src={audioUrl} preload="metadata" />
               )}
 
               {/* Custom Audio Player */}
               <div className="space-y-6">
-                {/* Waveform Visualization (Simplified) */}
+                {/* Waveform Visualization */}
                 <div className="flex items-center justify-center gap-1 h-16">
                   {[...Array(30)].map((_, i) => {
                     const isActive = (i / 30) * 100 < progress;
@@ -227,13 +225,13 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
                   >
                     {isPlaying ? (
                       <Pause
-                        className="w-8 h-8 text-purple-600"
+                        className="w-8 h-8 text-yellow-700"
                         fill="currentColor"
                         strokeWidth={0}
                       />
                     ) : (
                       <Play
-                        className="w-8 h-8 text-purple-600 ml-1"
+                        className="w-8 h-8 text-yellow-700 ml-1"
                         fill="currentColor"
                         strokeWidth={0}
                       />
@@ -241,14 +239,12 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
                   </button>
 
                   <div className="flex-1">
-                    {/* Progress Bar */}
                     <div className="bg-white/30 rounded-full h-2 overflow-hidden mb-2">
                       <div
                         className="bg-white h-full transition-all duration-200 rounded-full"
                         style={{ width: `${progress}%` }}
                       ></div>
                     </div>
-                    {/* Time Display */}
                     <div className="flex justify-between text-white text-sm font-mono">
                       <span>{formatTime(currentTime)}</span>
                       <span>{formatTime(audioDuration)}</span>
@@ -264,9 +260,9 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             className="mb-8 animate-fade-in-up"
             style={{ animationDelay: "400ms" }}
           >
-            <label className="block text-gray-900 font-bold text-lg mb-3">
+            <label className="block text-white font-bold text-lg mb-3">
               <div className="flex items-center gap-2">
-                <Edit3 className="w-5 h-5" strokeWidth={2} />
+                <Edit3 className="w-5 h-5 text-yellow-400" strokeWidth={2} />
                 <span>Give your story a title (optional)</span>
               </div>
             </label>
@@ -275,27 +271,27 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
               value={storyTitle}
               onChange={(e) => setStoryTitle(e.target.value)}
               placeholder="My story about..."
-              className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-500 text-lg transition-all"
+              className="w-full px-5 py-6 bg-gray-700/50 border-2 border-gray-500 rounded-xl focus:ring-4 focus:ring-yellow-500/20 focus:border-yellow-500 text-white placeholder-gray-400 text-xl font-semibold tracking-wider transition-all"
               maxLength={100}
             />
             <div className="flex justify-between items-center mt-2">
-              <p className="text-gray-500 text-sm">
+              <p className="text-gray-400 text-sm">
                 This will appear above your recording
               </p>
-              <p className="text-gray-400 text-xs">{storyTitle.length}/100</p>
+              <p className="text-gray-500 text-xs">{storyTitle.length}/100</p>
             </div>
           </div>
 
           {/* Error Display */}
           {error && (
-            <div className="bg-red-50 border-2 border-red-200 rounded-xl p-5 mb-6 animate-shake">
+            <div className="bg-red-900/30 border-2 border-red-500/30 rounded-xl p-5 mb-6 animate-shake">
               <div className="flex items-start gap-3">
-                <AlertCircle className="w-7 h-7 text-red-600" strokeWidth={2} />
+                <AlertCircle className="w-7 h-7 text-red-400" strokeWidth={2} />
                 <div>
-                  <p className="text-red-900 font-bold mb-1">
+                  <p className="text-red-400 font-bold mb-1">
                     Submission Error
                   </p>
-                  <p className="text-red-700 text-sm">{error}</p>
+                  <p className="text-red-300/80 text-sm">{error}</p>
                 </div>
               </div>
             </div>
@@ -309,7 +305,7 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             <button
               onClick={onReRecord}
               disabled={isSubmitting}
-              className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-gray-600 hover:bg-gray-600 text-white py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="flex items-center justify-center gap-2">
                 <RotateCcw className="w-5 h-5" strokeWidth={2.5} />
@@ -320,7 +316,7 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-4 rounded-xl font-black text-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-gradient-to-r from-green-500 to-emerald-700 hover:from-green-700 hover:to-emerald-700 text-white py-4 rounded-xl font-black text-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <div className="flex items-center justify-center gap-3">
@@ -338,12 +334,12 @@ const ReviewSubmit: React.FC<ReviewSubmitProps> = ({
 
           {/* Preview Tip */}
           <div
-            className="mt-6 bg-blue-50 border-2 border-blue-200 rounded-xl p-4 animate-fade-in-up"
+            className="mt-6 bg-blue-900/30 border-2 border-blue-500/30 rounded-xl p-4 animate-fade-in-up"
             style={{ animationDelay: "600ms" }}
           >
             <div className="flex items-center gap-3">
-              <Lightbulb className="w-6 h-6 text-blue-600" strokeWidth={2} />
-              <p className="text-blue-800 text-sm">
+              <Lightbulb className="w-6 h-6 text-blue-400" strokeWidth={2} />
+              <p className="text-blue-300 text-sm">
                 <strong>Pro tip:</strong> Listen to your recording before
                 submitting to make sure you're happy with it!
               </p>

@@ -8,6 +8,8 @@ interface InvitationDetails {
   book_id: string;
   book_title: string;
   inviter_name: string;
+  inviter_avatar?: string;
+  book_cover_path?: string;
   prompt_id?: number;
   prompt_content?: string;
   chapter_title?: string;
@@ -90,7 +92,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
     console.log("Test connection result:", testConnection);
     const { data, error } = await supabaseServer
-      .rpc("get_invitation_details_final_v4", { p_token: token })
+      .rpc("get_invitation_details_final_v5", { p_token: token })
       .single();
 
     console.log("6. RPC Response data:", data);
@@ -100,6 +102,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
     const invitation = data as InvitationDetails | null;
 
+    console.log("📸 Avatar:", invitation?.inviter_avatar);
+    console.log("📖 Cover:", invitation?.book_cover_path);
     if (error) {
       console.log("10. RPC Error details:", {
         message: error.message,
