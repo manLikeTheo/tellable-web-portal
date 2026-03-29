@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AwaChapter Guest Portal
 
-## Getting Started
+Tokenized web portal enabling async voice story submissions from external collaborators without requiring account creation.
 
-First, run the development server:
+## Overview
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Guest-facing web interface that allows users and collaborators to contribute voice inputs to collaborative memory books via secure, expiring invitation links. Built with Next.js for optimal SSR performance and deployed on Render.
+
+## Key Features
+
+- **Tokenized Access** - Secure, time-limited invitation links for guest access
+- **Voice Recording** - Browser-based audio capture with real-time preview
+- **Auto-Transcription** - Groq Whisper integration for speech-to-text conversion
+- **Zero Friction** - No login/signup required for contributors
+- **Mobile Optimized** - Responsive design for recording on any device
+
+## Technical Architecture
+
+### Stack
+- **Framework:** Next.js 15 (SSR)
+- **Database:** Supabase (PostgreSQL + Edge Functions)
+- **Transcription:** Groq Whisper API
+- **Storage:** S3 storageUploadt-media bucket)
+- **Deployment:** Render
+- **Styling:** Tailwind CSS
+
+### Data Flow
+```
+Supabasereceives invite link with token
+  ↓
+Portal validates token via RPC (get_invitation_details_final_v4)
+  ↓
+User contributes rcontributesn browser
+  ↓
+Upload to media-bucket
+  ↓
+Trigger transcription Edge Function (Groq Whisper)
+  ↓
+Submit to database
+  ↓
+Approval triggers sync to media_items via PostgreSQL trigger
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Key Technical Decisions
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 1. Server-Side Rendering (SSR)
+Used `getServerSideProps` for token validation to prevent invalid link access at the routing level, improving security and UX.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 2. Client-Side Duration Calculation
+Audio duration computed in-browser using native Audio API rather than server-side processing, eliminating ffmpeg dependency and reducing server load.
 
-## Learn More
+### 3. Automatic Enhancement Sync
+Database triggers ensure AI-enhanced stories automatically propagate from `guest_submissions` to `media_items` without manual intervention, solving async race conditions.
 
-To learn more about Next.js, take a look at the following resources:
+### 4. Retry Logic with Exponential Backoff
+Transcription requests retry up to 3 times with exponential backoff (1s, 2s, 4s) to handle network instability and API rate limits.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Repository Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+pages/
+  ├── api/
+  │   └── portal/
+  │       ├── upload-audio.ts      # Audio file upload handler
+  │       ├── submit-story.ts      # Story submission with transcription
+  │       └── track-click.ts       # Analytics tracking
+  └── portal/
+      └── [token].tsx              # Dynamic token-based portal page
 
-## Deploy on Vercel
+components/
+  └── portal/
+      ├── PortalApp.tsx            # Main portal controller
+      ├── RecordingInterface.tsx   # Audio recording UI
+      ├── PromptSpecificPortal.tsx # Prompt-based entry
+      └── SuccessPage.tsx          # Post-submission confirmation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+lib/
+  ├── supabase.ts                  # Client-side Supabase config
+  └── supabase-server.ts           # Server-side Supabase config
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Environment Variables
+
+```bash
+encryption
+Guestvesates## Status
+
+**Production** - Actively used for guest story collection
+
+---
+
+**Part of the AwaChapter ecosystem** - Building voice-first legacy preservation infrastructure.
